@@ -18,7 +18,7 @@ css = requests.get("https://unpkg.com/leaflet@1.9.4/dist/leaflet.css", timeout=6
 html = html.replace('<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">', f"<style>{css}</style>")
 html = html.replace('<script src="data/sites.js"></script>',
                     "<script>" + data + "\nwindow.NO_TILES=true;\nwindow.CITY_BOUNDS=" + json.dumps(bounds) + ";</script>")
-html = html.replace(".leaflet-container{background:#EDE9E0", ".leaflet-container{background:#D9E3E6")
+html = html.replace(".leaflet-container{background:#EDE9E0", ".leaflet-container{background:#DCE5E7")
 out = ROOT / "dist" / "common-ground.html"
 out.parent.mkdir(exist_ok=True)
 out.write_text(html)

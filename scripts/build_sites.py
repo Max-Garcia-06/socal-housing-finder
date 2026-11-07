@@ -267,7 +267,7 @@ def main():
     print("Terner benchmark:", bench)
     (OUT / "sites.js").write_text("window.SITES=" + json.dumps(recs, default=str) + ";\nwindow.PARCELS=" + json.dumps(gj)
                                   + ";\nwindow.WELLS=" + json.dumps(wells_gj) + ";\nwindow.PRECEDENTS=" + json.dumps(PRECEDENTS)
-                                  + ";\nwindow.BENCH=" + json.dumps(bench) + ";\nwindow.COST=" + json.dumps(dict(
+                                  + ";\nwindow.COUNTIES=" + (RAW / "socal_counties.geojson").read_text() + ";\nwindow.BENCH=" + json.dumps(bench) + ";\nwindow.COST=" + json.dumps(dict(
                                       nrsf=NRSF_PER_HOME, psf_lo=TDC_PSF_LO, psf_hi=TDC_PSF_HI, pw=PW_PREMIUM, hard=HARD_SHARE,
                                       fees=IMPACT_FEES, parking=PARKING_PER_SPACE)) + ";\nwindow.BUILT='" + pd.Timestamp.now().strftime("%Y-%m-%d") + "';\n")
     likely = out[out.verdict == "likely"]

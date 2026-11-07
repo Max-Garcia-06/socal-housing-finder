@@ -103,6 +103,8 @@
   footer a{color:var(--muted)}
   .legend{background:rgba(250,249,245,.95);padding:9px 11px;border-radius:10px;font-size:11.5px;line-height:1.7;box-shadow:0 1px 4px rgba(0,0,0,.12)}
   .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+  .soon{text-align:center;font:600 10.5px Inter;color:#8C877C;letter-spacing:.05em;text-transform:uppercase;line-height:1.3}
+  .soon span{display:inline-block;margin-top:3px;font:600 10px Inter;letter-spacing:.02em;text-transform:none;color:#B85C3E;background:#FAF9F5;border:1px solid #EBC9B8;border-radius:999px;padding:1px 8px}
   .star{font-size:18px;color:var(--clay-d);text-shadow:0 0 3px #fff,0 0 3px #fff}
   .disclaimer{position:absolute;right:12px;top:12px;z-index:500;background:rgba(250,249,245,.95);border-radius:10px;padding:6px 10px;font-size:11px;color:var(--muted);box-shadow:0 1px 4px rgba(0,0,0,.12)}
 </style>
@@ -265,6 +267,19 @@ if (window.CITY_BOUNDS) {
     if (!best[n] || a > best[n].a) best[n] = { a, c: b.getCenter() }; });
   Object.entries(best).forEach(([n, v]) => L.marker(v.c, { interactive: false, icon: L.divIcon({ className: "", iconSize: [120, 14], iconAnchor: [60, 7],
     html: `<div style="font:600 10px Inter;color:#9A958A;text-align:center;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap">${n}</div>` }) }).addTo(map));
+}
+// Neighbouring counties: "coming soon" wash + labels, OC outlined
+if (window.COUNTIES) {
+  const isOC = f => f.properties.COUNTY === "059";
+  L.geoJSON({ type: "FeatureCollection", features: COUNTIES.features.filter(f => !isOC(f)) }, { interactive: false,
+    style: { color: "#C9C1B2", weight: 1, dashArray: "3 4", fillColor: NO_TILES ? "#EFEBE3" : "#F4F1EA", fillOpacity: NO_TILES ? 1 : .72 } }).addTo(map);
+  L.geoJSON({ type: "FeatureCollection", features: COUNTIES.features.filter(isOC) }, { interactive: false,
+    style: { color: "#D97757", weight: 2, fill: false } }).addTo(map);
+  [["Los Angeles County", 33.875, -118.11], ["San Bernardino County", 33.975, -117.70], ["Riverside County", 33.90, -117.58], ["San Diego County", 33.40, -117.47]]
+    .forEach(([n, y, x]) => L.marker([y, x], { interactive: false, icon: L.divIcon({ className: "", iconSize: [170, 40], iconAnchor: [85, 20],
+      html: `<div class="soon"><b>${n}</b><span>Coming soon</span></div>` }) }).addTo(map));
+  if (NO_TILES) L.marker([33.55, -118.02], { interactive: false, icon: L.divIcon({ className: "", iconSize: [140, 20], iconAnchor: [70, 10],
+    html: '<div style="font:italic 500 13px \'Source Serif 4\',Georgia,serif;color:#8FA6AE;letter-spacing:.08em;text-align:center">Pacific Ocean</div>' }) }).addTo(map);
 }
 if (!NO_TILES) map.on("zoomend", () => { const z = map.getZoom(); if (z >= 16 && !map.hasLayer(sat)) { sat.addTo(map); map.removeLayer(gray); } else if (z < 16 && map.hasLayer(sat)) { gray.addTo(map); map.removeLayer(sat); } });
 const color = s => s.verdict === "excluded" ? "#8C877C" : s.score >= 70 ? "#B85C3E" : s.score >= 55 ? "#D97757" : s.score > 0 ? "#E9A98D" : "#C9C3B6";

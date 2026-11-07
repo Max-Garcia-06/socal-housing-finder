@@ -116,6 +116,39 @@ def download(name, url):
     print(f"wrote {name}")
 
 
+def socal_counties():
+    """Census cartographic-boundary (land-clipped) county outlines for OC and neighbours."""
+    out = RAW / "socal_counties.geojson"
+    if out.exists():
+        print("skip socal_counties")
+        return
+    import geopandas as gpd
+    r = requests.get("https://www2.census.gov/geo/tiger/GENZ2023/shp/cb_2023_us_county_500k.zip", headers=HEADERS, timeout=300)
+    r.raise_for_status()
+    d = RAW / "cb_county"
+    zipfile.ZipFile(io.BytesIO(r.content)).extractall(d)
+    g = gpd.read_file(d / "cb_2023_us_county_500k.shp")
+    g = g[(g.STATEFP == "06") & g.COUNTYFP.isin(["037", "059", "065", "071", "073", "111", "029", "025"])]
+    g = g[["NAME", "COUNTYFP", "geometry"]].rename(columns={"COUNTYFP": "COUNTY"}).to_crs(4326)
+    g["geometry"] = g.geometry.simplify(0.0015)
+    out.write_text(g.to_json(drop_id=True))
+    print("wrote socal_counties")
+
+
+def city_bounds():
+    """OC city outlines (county GIS) for the tile-free standalone map."""
+    out = RAW / "city_bounds.geojson"
+    if out.exists():
+        print("skip city_bounds")
+        return
+    r = requests.post("https://www.ocgis.com/arcpub/rest/services/Map_Layers/City_Boundaries/MapServer/0/query",
+                      data={"where": "1=1", "outFields": "CITY", "outSR": 4326, "maxAllowableOffset": 0.0005,
+                            "geometryPrecision": 5, "f": "geojson"}, headers=HEADERS, timeout=120)
+    r.raise_for_status()
+    out.write_text(r.text)
+    print("wrote city_bounds")
+
+
 def zoning_for_religious():
     """Zoning (SCAG Zoning_poly_OR) for every religious parcel APN, no geometry."""
     out = RAW / "religious_zoning.json"
@@ -146,6 +179,9 @@ if __name__ == "__main__":
                 print(f"FAILED {name}: {e}")
     if not only or "zoning" in only:
         zoning_for_religious()
+    if not only or "context" in only:
+        socal_counties()
+        city_bounds()
     for name, url in DOWNLOADS.items():
         if not only or name in only:
             try:
