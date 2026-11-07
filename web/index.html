@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Common Ground · SB 4 church-land finder for Orange County</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M16 3 L28 13 V29 H4 V13 Z%22 fill=%22%23D97757%22/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F4F1EA; --panel:#FAF9F5; --ink:#1F1E1D; --muted:#6B6A63; --line:#E3DED3;
+    --clay:#D97757; --clay-d:#B85C3E; --clay-l:#F2D9CC;
+    --pass:#5B8C5A; --fail:#B8483A; --caution:#C88A2A; --unknown:#9A968C; --info:#5A7FA8;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:14px/1.45 Inter,system-ui,sans-serif}
+  .app{display:grid;grid-template-columns:420px 1fr;height:100vh}
+  aside{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+  header{padding:18px 20px 12px;border-bottom:1px solid var(--line)}
+  .brand{display:flex;align-items:center;gap:10px}
+  .mark{width:28px;height:28px}
+  h1{font:600 22px/1.1 "Source Serif 4",Georgia,serif;margin:0;letter-spacing:-.01em}
+  .sub{color:var(--muted);font-size:12.5px;margin-top:6px}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+  .stat{background:var(--bg);border-radius:10px;padding:8px 10px}
+  .stat b{display:block;font:600 20px "Source Serif 4",Georgia,serif;color:var(--clay-d)}
+  .stat span{font-size:11px;color:var(--muted)}
+  .filters{padding:10px 20px;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:4px 10px;font-size:12px;cursor:pointer;user-select:none}
+  .chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  select{border:1px solid var(--line);border-radius:999px;padding:4px 8px;font:12px Inter;background:#fff}
+  .scroll{overflow:auto;flex:1;min-height:0}
+  .card{padding:12px 20px;border-bottom:1px solid var(--line);cursor:pointer;display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center}
+  .card:hover,.card.sel{background:#F1ECE2}
+  .rk{font:600 16px "Source Serif 4",serif;color:var(--muted);text-align:center}
+  .nm{font-weight:600;font-size:13px;line-height:1.25}
+  .meta{color:var(--muted);font-size:11.5px}
+  .sc{text-align:right}
+  .sc b{font:600 18px "Source Serif 4",serif;color:var(--clay-d)}
+  .sc span{display:block;font-size:10.5px;color:var(--muted)}
+  .bar{height:4px;background:var(--line);border-radius:4px;margin-top:5px;overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--clay)}
+  #map{height:100vh}
+  .leaflet-container{background:#EDE9E0;font-family:Inter}
+  /* detail */
+  .detail{display:none;flex-direction:column;min-height:0;flex:1}
+  .detail.on{display:flex}
+  .dhead{padding:14px 20px 10px;border-bottom:1px solid var(--line)}
+  .back{font-size:12px;color:var(--clay-d);cursor:pointer;margin-bottom:6px;display:inline-block}
+  .dname{font:600 19px/1.2 "Source Serif 4",Georgia,serif}
+  .verdict{display:inline-block;font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;margin-top:6px}
+  .v-likely{background:#E1EDDF;color:#2F5D2E}.v-excluded{background:#F3DCD7;color:#8A2F24}
+  .tabs{display:flex;gap:4px;padding:8px 20px 0;border-bottom:1px solid var(--line)}
+  .tab{padding:7px 12px;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent}
+  .tab.on{color:var(--ink);border-color:var(--clay)}
+  .pane{padding:14px 20px;display:none}.pane.on{display:block}
+  .kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+  .kpi{background:var(--bg);border-radius:10px;padding:9px 11px}
+  .kpi b{font:600 19px "Source Serif 4",serif;display:block}
+  .kpi span{font-size:11px;color:var(--muted)}
+  .test{display:grid;grid-template-columns:20px 1fr;gap:8px;padding:6px 0;border-bottom:1px dashed var(--line);font-size:12.5px}
+  .dot{width:16px;height:16px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:10px;font-weight:700;margin-top:1px}
+  .d-pass{background:var(--pass)}.d-fail{background:var(--fail)}.d-caution{background:var(--caution)}.d-unknown{background:var(--unknown)}.d-info{background:var(--info)}
+  .tl{font-weight:600}
+  .ev{color:var(--muted);font-size:11.5px}
+  h3{font:600 14px "Source Serif 4",serif;margin:14px 0 6px}
+  .note{font-size:11px;color:var(--muted);background:var(--bg);border-radius:8px;padding:7px 9px;margin-top:8px}
+  .asm{font-size:9.5px;font-weight:700;color:var(--caution);border:1px solid var(--caution);border-radius:4px;padding:0 4px;margin-left:4px;vertical-align:1px}
+  .tline{display:grid;grid-template-columns:110px 1fr;gap:8px;align-items:center;font-size:12px;margin:6px 0}
+  .tbar{height:14px;border-radius:7px}
+  .fund{display:block;border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:6px 0;text-decoration:none;color:inherit;background:#fff}
+  .fund b{font-size:12.5px}.fund span{display:block;font-size:11.5px;color:var(--muted)}
+  .fund:hover{border-color:var(--clay)}
+  .btn{display:inline-block;background:var(--clay);color:#fff;border:0;border-radius:999px;padding:8px 14px;font:600 12.5px Inter;cursor:pointer;margin-top:8px}
+  textarea{width:100%;height:220px;border:1px solid var(--line);border-radius:10px;padding:10px;font:12px/1.45 Inter;background:#fff;margin-top:8px}
+  footer{padding:8px 20px;border-top:1px solid var(--line);font-size:10.5px;color:var(--muted)}
+  footer a{color:var(--muted)}
+  .legend{background:rgba(250,249,245,.95);padding:9px 11px;border-radius:10px;font-size:11.5px;line-height:1.7;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+  .star{font-size:18px;color:var(--clay-d);text-shadow:0 0 3px #fff,0 0 3px #fff}
+  .disclaimer{position:absolute;right:12px;top:12px;z-index:500;background:rgba(250,249,245,.95);border-radius:10px;padding:6px 10px;font-size:11px;color:var(--muted);box-shadow:0 1px 4px rgba(0,0,0,.12)}
+</style>
+</head>
+<body>
+<div class="app">
+<aside>
+  <header>
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 32 32"><path d="M16 3 L28 13 V29 H4 V13 Z" fill="#D97757"/><rect x="13" y="18" width="6" height="11" fill="#FAF9F5"/><path d="M16 7v6M13 10h6" stroke="#FAF9F5" stroke-width="2"/></svg>
+      <h1>Common Ground</h1>
+    </div>
+    <div class="sub">Where can church land in Orange County become affordable homes <b>by right</b> under SB 4? For nonprofit developers: ranked sites, site tests, a path through approvals and a funding stack.</div>
+    <div class="stats">
+      <div class="stat"><b id="s1">–</b><span>religious-use parcels screened</span></div>
+      <div class="stat"><b id="s2">–</b><span>pass every checked SB 4 test</span></div>
+      <div class="stat"><b id="s3">–</b><span>homes possible (est.)<span class="asm">ASSUMPTION</span></span></div>
+    </div>
+  </header>
+  <div id="listView" style="display:flex;flex-direction:column;min-height:0;flex:1">
+    <div class="filters">
+      <span class="chip on" data-f="likely">Likely eligible</span>
+      <span class="chip" data-f="transit">Transit: 0 parking</span>
+      <span class="chip" data-f="need">High need</span>
+      <span class="chip" data-f="big">2+ acres</span>
+      <select id="city"><option value="">All 34 cities</option></select>
+    </div>
+    <div class="scroll" id="list"></div>
+  </div>
+  <div class="detail" id="detail">
+    <div class="dhead">
+      <span class="back" id="back">← All sites</span>
+      <div class="dname" id="dname"></div>
+      <div class="meta" id="dmeta"></div>
+      <span class="verdict" id="dverdict"></span>
+    </div>
+    <div class="tabs">
+      <div class="tab on" data-t="find">1 · Find</div>
+      <div class="tab" data-t="clear">2 · Clear</div>
+      <div class="tab" data-t="fund">3 · Fund</div>
+      <div class="tab" data-t="help">Residents</div>
+    </div>
+    <div class="scroll">
+      <div class="pane on" id="p-find"></div>
+      <div class="pane" id="p-clear"></div>
+      <div class="pane" id="p-fund"></div>
+      <div class="pane" id="p-help"></div>
+    </div>
+  </div>
+  <footer>Prototype screening tool, not legal, financial or lending advice. Data checked <span id="built"></span>. <a href="https://github.com/Max-Garcia-06/socal-housing-finder#sources-and-assumptions" target="_blank">Sources &amp; assumptions</a></footer>
+</aside>
+<div style="position:relative">
+  <div id="map"></div>
+  <div class="disclaimer">Land use ≠ ownership. Every site needs a title check.</div>
+</div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="data/sites.js"></script>
+<script>
+const S = window.SITES, byId = Object.fromEntries(S.map(s => [s.pid, s]));
+const fmt = n => n == null ? "–" : n.toLocaleString("en-US");
+const money = n => "$" + (n / 1e6).toFixed(n >= 1e8 ? 0 : 1) + "M";
+const SRC = {
+  hcd: "https://www.hcd.ca.gov/sites/default/files/docs/planning-and-community/aff-hsg-faith-higher-ed-sb-4.pdf",
+  scag_lu: "https://maps.scag.ca.gov/scaggis/rest/services/LDX/Existinglanduse_poly_OR/MapServer",
+  scag_zn: "https://maps.scag.ca.gov/scaggis/rest/services/LDX/Zoning_poly_OR/MapServer",
+  fema: "https://www.ocgis.com/arcpub/rest/services/Map_Layers/Floodplains/MapServer/0",
+  fire: "https://services.gis.ca.gov/arcgis/rest/services/Environment/Fire_Severity_Zones/MapServer",
+  wells: "https://gis.conservation.ca.gov/server/rest/services/WellSTAR/Wells/MapServer/0",
+  hqta: "https://caltrans-gis.dot.ca.gov/arcgis/rest/services/CHrailroad/CA_HQ_Transit_Areas/FeatureServer/0",
+  ces: "https://oehha.ca.gov/calenviroscreen",
+  tcac: "https://www.treasurer.ca.gov/ctcac/opportunity.asp",
+  irs: "https://services.arcgis.com/XG15cJAlne2vxtgt/arcgis/rest/services/All_Places_Of_Worship__HiFLD_Open_/FeatureServer",
+  he: "https://maps.scag.ca.gov/scaggis/rest/services/LDX/HousingElementSite_poly_scag/MapServer",
+  abag: "https://www.abag.ca.gov/sites/default/files/documents/2026-03/SB4-and-Streamlining-Legislation.pdf",
+  cost: "https://sjvsun.com/?p=90789",
+  pw: "https://californiaglobe.com/fr/legislation-to-fast-track-land-rezoning-supposed-to-increase-affordable-housing-availability/",
+};
+const TESTS = {
+  owner: ["Owned by a religious institution (as of 1 Jan 2024)", SRC.scag_lu],
+  flood: ["Outside FEMA special flood hazard area", SRC.fema],
+  fire: ["Outside Very High fire hazard severity zone", SRC.fire],
+  oil: ["More than 3,200 ft from oil & gas extraction", SRC.wells],
+  parking: ["Parking requirement", SRC.hqta],
+  slope: ["Buildable slope", SRC.scag_zn],
+  fault: ["Earthquake fault zone", SRC.hcd], wetland: ["Wetlands / habitat / farmland", SRC.hcd],
+  historic: ["No historic demolition, no tenants displaced", SRC.hcd], industrial: ["Industrial buffers", SRC.hcd],
+};
+const FUND = {
+  lihtc9: ["9% LIHTC (TCAC)", "Competitive tax credits. This tract is High/Highest Resource on the 2026 TCAC/HCD Opportunity Map, which TCAC uses in scoring.", "https://www.treasurer.ca.gov/ctcac/"],
+  lihtc4: ["4% LIHTC + tax-exempt bonds (TCAC / CDLAC)", "The workhorse for 50+ home projects. Wesley Village used 4% credits.", "https://www.treasurer.ca.gov/cdlac/"],
+  ahsc: ["AHSC (Strategic Growth Council)", "Transit-oriented housing. Legacy Square won $25.4M; this site is in a high-quality transit area.", "https://sgc.ca.gov/grant-programs/ahsc/"],
+  ochft: ["Orange County Housing Finance Trust", "County + member-city gap loans for affordable and supportive housing. Check the city is a member.", "https://www.ochft.org/"],
+  ahp: ["FHLB San Francisco AHP", "Gap grants through a member bank. Wesley Village used AHP.", "https://www.fhlbsf.com/"],
+  city: ["City housing funds (HOME, local trust)", "Laguna Beach committed $6.71M to the SB 4 project at its church.", "https://www.lagunabeachindy.com/news/city-commits-6-71m-in-funding-for-affordable-housing-project/article_f60c6735-3a80-42e6-a47d-164c19c713c1.html"],
+  lisc: ["LISC faith & housing support", "Predevelopment help for congregations new to development.", "https://www.lisc.org/los-angeles/"],
+};
+const PARTNERS = [
+  ["National CORE", "Built Legacy Square on church land (Santa Ana)", "https://nationalcore.org/what-we-do/planning-and-development/faith-based-partnerships/"],
+  ["Jamboree Housing", "Built Wesley Village on church land (Garden Grove)", "https://www.jamboreehousing.com"],
+  ["Related California", "Developing the SB 4 project at NCC (Laguna Beach)", "https://www.relatedca.com"],
+  ["Mercy Housing California", "Converting an OC convent into affordable homes", "https://www.mercyhousing.org/california/"],
+];
+
+// ---------- stats ----------
+const likely = S.filter(s => s.verdict === "likely");
+document.getElementById("s1").textContent = fmt(S.length);
+document.getElementById("s2").textContent = fmt(likely.length);
+document.getElementById("s3").textContent = "~" + fmt(Math.round(likely.filter(s => s.ACRES >= .5).reduce((a, s) => a + s.units_est, 0) / 100) * 100);
+document.getElementById("built").textContent = window.BUILT;
+const cities = [...new Set(S.map(s => s.CITY))].sort();
+document.getElementById("city").innerHTML += cities.map(c => `<option>${c}</option>`).join("");
+
+// ---------- map ----------
+const map = L.map("map", { zoomControl: false, preferCanvas: true }).setView([33.70, -117.83], 11);
+L.control.zoom({ position: "bottomright" }).addTo(map);
+const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services/";
+const gray = L.layerGroup([L.tileLayer(ESRI + "Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}", { maxZoom: 16, attribution: "Tiles &copy; Esri" }),
+  L.tileLayer(ESRI + "Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}", { maxZoom: 16 })]).addTo(map);
+const sat = L.tileLayer(ESRI + "World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, attribution: "Imagery &copy; Esri, Maxar" });
+map.on("zoomend", () => { const z = map.getZoom(); if (z >= 16 && !map.hasLayer(sat)) { sat.addTo(map); map.removeLayer(gray); } else if (z < 16 && map.hasLayer(sat)) { gray.addTo(map); map.removeLayer(sat); } });
+const color = s => s.verdict === "excluded" ? "#8C877C" : s.score >= 70 ? "#B85C3E" : s.score >= 55 ? "#D97757" : s.score > 0 ? "#E9A98D" : "#C9C3B6";
+const wellLayer = L.geoJSON(WELLS, { style: { color: "#1F1E1D", weight: 1, dashArray: "4 3", fillColor: "#1F1E1D", fillOpacity: .12 }, interactive: false });
+const dots = {};
+S.forEach(s => {
+  dots[s.pid] = L.circleMarker([s.lat, s.lon], { radius: Math.max(3, Math.min(11, 2.5 + Math.sqrt(s.units_est) * .9)),
+    color: "#fff", weight: 1, fillColor: color(s), fillOpacity: .92 }).addTo(map)
+    .bindTooltip(`<b>${s.name ? title(s.name) : "Religious facility"}</b><br>${s.CITY} · ${s.ACRES} ac · ~${s.units_est} homes`)
+    .on("click", () => open(s.pid));
+});
+const parcelLayer = L.geoJSON(PARCELS, { style: { color: "#B85C3E", weight: 2, fillOpacity: .15 } });
+let shape = null;
+PRECEDENTS.forEach(p => L.marker([p.lat, p.lon], { icon: L.divIcon({ className: "", html: '<div class="star">★</div>', iconSize: [18, 18], iconAnchor: [9, 9] }) })
+  .addTo(map).bindTooltip(`<b>${p.name}</b> · ${p.units} homes · ${p.year}<br>${p.partner}<br><i>${p.law}</i>`));
+const legend = L.control({ position: "bottomleft" });
+legend.onAdd = () => { const d = L.DomUtil.create("div", "legend"); d.innerHTML =
+  `<i style="background:#B85C3E"></i>Top-ranked (score 70+)<br><i style="background:#D97757"></i>Strong (55–69)<br><i style="background:#E9A98D"></i>Eligible, lower rank<br><i style="background:#8C877C"></i>Excluded by an SB 4 test<br><span class="star" style="font-size:13px">★</span> Built / proposed church housing<br><label><input type="checkbox" id="wells"> Oil &amp; gas wells: 3,200 ft no-build buffer</label>`; return d; };
+legend.addTo(map);
+document.getElementById("wells").onchange = e => e.target.checked ? wellLayer.addTo(map) : map.removeLayer(wellLayer);
+
+function title(n) { return n.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()).replace(/\bOf\b/g, "of").replace(/\bThe\b/g, "the").replace(/^the/, "The").replace(/\bInc\b\.?/g, "").trim(); }
+function siteName(s) { return s.name ? title(s.name) : `Religious facility, APN ${s.APN24}`; }
+
+// ---------- list ----------
+const F = { likely: true, transit: false, need: false, big: false, city: "" };
+document.querySelectorAll(".chip").forEach(c => c.onclick = () => { F[c.dataset.f] = !F[c.dataset.f]; c.classList.toggle("on"); render(); });
+document.getElementById("city").onchange = e => { F.city = e.target.value; render(); };
+function filtered() {
+  return S.filter(s => (!F.likely || s.score > 0) && (!F.transit || s.hqta) && (!F.need || s.HousBurd_Pctl >= 75)
+    && (!F.big || s.ACRES >= 2) && (!F.city || s.CITY === F.city)).sort((a, b) => b.score - a.score || b.units_est - a.units_est);
+}
+function render() {
+  const rows = filtered();
+  document.getElementById("list").innerHTML = rows.slice(0, 80).map((s, i) => `
+    <div class="card" data-id="${s.pid}"><div class="rk">${s.score ? i + 1 : "–"}</div>
+      <div><div class="nm">${siteName(s)}</div>
+      <div class="meta">${s.CITY} · ${s.ACRES} ac · ~${s.units_est} homes${s.hqta ? " · transit" : ""}${s.verdict === "excluded" ? " · excluded: " + s.fails.join(", ") : ""}</div>
+      <div class="bar"><i style="width:${s.score}%"></i></div></div>
+      <div class="sc"><b>${s.score || "–"}</b><span>impact score</span></div></div>`).join("") +
+    `<div class="meta" style="padding:12px 20px">${fmt(rows.length)} sites match. Score = homes 35% + need 30% + fundability 20% + feasibility 15%.</div>`;
+  document.querySelectorAll(".card").forEach(c => c.onclick = () => open(+c.dataset.id));
+  const ids = new Set(rows.map(s => s.pid));
+  S.forEach(s => dots[s.pid].setStyle({ fillOpacity: ids.has(s.pid) ? .92 : .12, opacity: ids.has(s.pid) ? 1 : .2 }));
+}
+render();
+
+// ---------- detail ----------
+document.getElementById("back").onclick = () => { document.getElementById("detail").classList.remove("on"); document.getElementById("listView").style.display = "flex"; document.querySelector(".stats").style.display = "grid"; document.querySelector("header .sub").style.display = "block"; if (shape) map.removeLayer(shape); history.replaceState(null, "", "#"); };
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => tab(t.dataset.t));
+function tab(k) { document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.dataset.t === k)); document.querySelectorAll(".pane").forEach(p => p.classList.toggle("on", p.id === "p-" + k)); }
+const icon = { pass: "✓", fail: "✕", caution: "!", unknown: "?", info: "i" };
+
+function open(pid) {
+  const s = byId[pid]; history.replaceState(null, "", "#site=" + pid);
+  document.getElementById("listView").style.display = "none"; document.querySelector(".stats").style.display = "none"; document.querySelector("header .sub").style.display = "none";
+  document.getElementById("detail").classList.add("on"); tab("find");
+  document.getElementById("dname").textContent = siteName(s);
+  document.getElementById("dmeta").textContent = `${s.street ? title(s.street) + ", " : ""}${s.CITY} · APN ${s.APN24} · ${s.ACRES} acres · zoned ${s.ZN24_CITY || "unknown"}`;
+  const v = document.getElementById("dverdict");
+  v.className = "verdict v-" + s.verdict;
+  v.textContent = s.verdict === "likely" ? `Likely SB 4 eligible · impact score ${s.score || "n/a"}` : `Excluded: fails ${s.fails.join(", ")} test`;
+  if (shape) map.removeLayer(shape);
+  const feat = PARCELS.features[pid];
+  shape = L.geoJSON(feat, { style: { color: "#FFB38F", weight: 3, fillColor: "#D97757", fillOpacity: .28 } }).addTo(map);
+  map.flyToBounds(shape.getBounds(), { maxZoom: 17, duration: 1.2, paddingTopLeft: [40, 40] });
+
+  const t = s.tests, order = ["owner", "flood", "fire", "oil", "parking", "slope", "fault", "wetland", "historic", "industrial"];
+  document.getElementById("p-find").innerHTML = `
+    <div class="kpis">
+      <div class="kpi"><b>~${s.units_est} homes</b><span>half the lot at ${s.density} homes/acre<span class="asm">ASSUMPTION</span> · up to ${s.units_max} on the whole parcel</span></div>
+      <div class="kpi"><b>${s.parking_req === 0 ? "0 spaces" : "≤ " + s.parking_req + " spaces"}</b><span>${s.hqta ? "near high-quality transit: no parking can be required" : "1 per home allowed (outside transit areas)"}</span></div>
+      <div class="kpi"><b>${s.HousBurd_Pctl ?? "–"}th</b><span>percentile, low-income households with severe housing cost burden (CalEnviroScreen 5.0)</span></div>
+      <div class="kpi"><b>${s.oppcat || "–"}</b><span>2026 TCAC/HCD Opportunity Map</span></div>
+    </div>
+    <h3>SB 4 site tests</h3>
+    ${order.map(k => `<div class="test"><div class="dot d-${t[k][0]}">${icon[t[k][0]]}</div><div><span class="tl">${TESTS[k][0]}</span><div class="ev">${t[k][1]} · <a href="${TESTS[k][1]}" target="_blank">source</a></div></div></div>`).join("")}
+    ${s.he_total ? `<div class="note">The city's housing element already lists this parcel for ${fmt(s.he_total)} homes (${fmt(s.he_low)} lower-income). <a href="${SRC.he}" target="_blank">SCAG</a></div>` : ""}
+    ${s.precedent ? `<div class="note">★ This parcel is the site of <b>${s.precedent}</b>.</div>` : ""}
+    <div class="note">Density: city zone ${s.ZN24_CITY || "unknown"} is ${s.zone_res ? "residential in SCAG's zoning data, so 30 homes/acre (default density for a metropolitan county)" : "not a residential category in SCAG's zoning data, so 40 homes/acre"}, plus one extra story of height. <a href="${SRC.hcd}" target="_blank">HCD SB 4 fact sheet</a>. Density bonus law can add more, so these are floors.</div>`;
+
+  document.getElementById("p-clear").innerHTML = `
+    <h3>Approval path: ministerial, no CEQA</h3>
+    <div class="tline"><span>Typical path</span><div class="tbar" style="width:100%;background:#C9C3B6"></div></div>
+    <div class="meta" style="margin:-4px 0 6px 118px">~1 yr rezoning + ~1 yr entitlements<span class="asm">ASSUMPTION</span> (event brief)</div>
+    <div class="tline"><span>SB 4 path</span><div class="tbar" style="width:${s.units_est > 150 ? 25 : 19}%;background:var(--clay)"></div></div>
+    <div class="meta" style="margin:-4px 0 10px 118px">City must flag conflicts within ${s.units_est > 150 ? 90 : 60} days or the project is deemed compliant; approval in 90–180 days (<a href="${SRC.abag}" target="_blank">ABAG</a>, <a href="${SRC.hcd}" target="_blank">HCD</a>)</div>
+    <h3>Clearance checklist</h3>
+    ${[
+      ["Title report", "Confirm the religious institution (or affiliate) owned the parcel on 1 Jan 2024."],
+      ["Congregation & denomination approval", "Most congregations need a board vote and, for many denominations, regional sign-off before a ground lease."],
+      ["Phase I environmental site assessment", "Required by SB 4 before approval."],
+      ["Objective standards check", `Ask ${s.CITY} for its written objective standards (setbacks, design). Subjective review cannot block the project.`],
+      ["100% affordable, deed-restricted", "Lower-income homes; up to 20% moderate-income and 5% staff housing allowed. 55-year rental restriction."],
+      ["Prevailing wage", "Required. Budget for it: one developer estimates SB 4 projects can cost up to 30% more. " + `<a href="${SRC.pw}" target="_blank">source</a>`],
+      ["Remaining unknowns", "Fault zones, wetlands, historic structures, tenants, industrial buffers: not checked by this tool."],
+    ].map(([a, b], i) => `<div class="test"><div class="dot d-info">${i + 1}</div><div><span class="tl">${a}</span><div class="ev">${b}</div></div></div>`).join("")}
+    <div class="note">Rules from the <a href="${SRC.hcd}" target="_blank">HCD SB 4 fact sheet (Apr 2026)</a>. SB 4 sunsets 1 Jan 2036.</div>`;
+
+  document.getElementById("p-fund").innerHTML = `
+    <div class="kpis">
+      <div class="kpi"><b>${money(s.cost_lo)}–${money(s.cost_hi)}</b><span>total development cost for ~${s.units_est} homes at $450k–$700k/home<span class="asm">ASSUMPTION</span> (<a href="${SRC.cost}" target="_blank">coastal CA range</a>)</span></div>
+      <div class="kpi"><b>$0 land</b><span>if the church ground-leases instead of selling, as at Legacy Square and Wesley Village</span></div>
+    </div>
+    <h3>Likely funding stack</h3>
+    ${s.funding.map(k => `<a class="fund" href="${FUND[k][2]}" target="_blank"><b>${FUND[k][0]}</b><span>${FUND[k][1]}</span></a>`).join("")}
+    <h3>Developers who have built on church land in OC</h3>
+    ${PARTNERS.map(p => `<a class="fund" href="${p[2]}" target="_blank"><b>${p[0]}</b><span>${p[1]}</span></a>`).join("")}
+    <button class="btn" id="draft">Draft an intro letter to this congregation</button>
+    <div id="draftBox"></div>
+    <div class="note">Funding paths are rules of thumb from the site's tract and transit status, not an underwriting. Ask a housing finance professional.</div>`;
+  document.getElementById("draft").onclick = () => {
+    document.getElementById("draftBox").innerHTML = `<textarea>Dear ${s.name ? title(s.name) : "congregation"} leadership,
+
+We are a nonprofit affordable housing developer working in ${s.CITY}. California's SB 4 (2023) lets congregations build 100% affordable homes on their own land by right, without a rezoning or CEQA review.
+
+From public data, your ${s.ACRES}-acre property may support roughly ${s.units_est} homes on part of the site${s.hqta ? ", with no parking required because it is near frequent transit" : ""}, while your sanctuary and ministries stay in place. Congregations such as Santa Ana United Methodist (Legacy Square, 93 homes) and Garden Grove United Methodist (Wesley Village, 47 homes) kept ownership by ground-leasing land to a nonprofit partner.
+
+Would you be open to a 30-minute conversation about whether this fits your mission? There is no cost or commitment.
+
+With respect,
+[Your name, organization]
+
+(Draft only. Estimates are from public data and need confirmation.)</textarea>`;
+  };
+
+  document.getElementById("p-help").innerHTML = `
+    <h3>If a household in ${s.CITY} needs housing help now</h3>
+    ${[["211 Orange County", "Dial 2-1-1 for shelter, rental help and referrals", "https://www.211oc.org"],
+       ["OC Housing Authority", "Housing Choice Vouchers (Section 8) and waitlists", "https://www.ochousing.org"],
+       ["Kennedy Commission", "OC affordable housing advocacy for lower-income families", "https://www.kennedycommission.org"],
+       ["Mercy House", "Homeless services partner at Legacy Square", "https://mercyhouse.net"],
+       ["Habitat for Humanity of Orange County", "Affordable homeownership", "https://www.habitatoc.org"]]
+      .map(p => `<a class="fund" href="${p[2]}" target="_blank"><b>${p[0]}</b><span>${p[1]}</span></a>`).join("")}
+    <div class="note">Need in this tract: ${s.HousBurd ?? "–"}% of low-income households pay over half their income on housing (CalEnviroScreen 5.0 housing burden, ${s.HousBurd_Pctl ?? "–"}th percentile statewide).</div>`;
+  document.querySelectorAll(".card").forEach(c => c.classList.toggle("sel", +c.dataset.id === pid));
+}
+window.openSite = open; window.setTab = tab; window.leafletMap = map;
+const m = location.hash.match(/site=(\d+)/); if (m) open(+m[1]);
+</script>
+</body>
+</html>

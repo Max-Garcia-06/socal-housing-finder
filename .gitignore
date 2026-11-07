@@ -28,3 +28,4 @@ data/cache/
 
 # Generated maps
 *.html
+!web/index.html
