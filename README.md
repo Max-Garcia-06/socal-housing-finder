@@ -82,6 +82,33 @@ Why it matters: congregations often sit on underused land, especially parking lo
 
 Caveats to state in the demo: OSM footprints are not legal parcels. Ownership as of 2024-01-01 needs an assessor or title check. Unit counts are pre-design estimates. This is a screening tool, not legal advice.
 
+## Which sites qualify, and which are best
+
+`examples/rank_sites.py` runs the whole pipeline: find candidates, screen each against SB 4's site tests, then rank.
+
+**Qualify** (`findit.screens`). Every test gets `pass`, `fail`, `flag` or `unknown`, with the reason, the source layer and the date checked:
+
+| Test | Data | Result |
+|---|---|---|
+| Flood | FEMA NFHL special flood hazard areas and floodways | `fail` if 10%+ of the site is inside (excluded unless FEMA LOMR or NFIP compliance); `flag` for a smaller sliver |
+| Fire | OC fire hazard severity zones (LRA) + CAL FIRE SRA, Very High only | same 10% rule |
+| Transit | Caltrans high-quality transit areas | `pass` = likely **0 parking required**; `flag` = 1 space per home |
+| Freeway | Caltrans freeways and expressways within 500 ft | `flag`: MERV-13 filtration cost |
+| Zoning | SCAG 2024 parcel zoning at the site | APN, city zone, and which SB 4 density applies (30/acre housing zone, 40/acre non-residential) |
+| Everything else in the statute | none verified | `unknown`, listed on every site so nobody reads silence as a pass |
+
+**Rank** (`findit.rank`). Sites that fail a checked test are shown but not ranked. The rest get a 0-1 score:
+
+| Part | Weight | What it measures |
+|---|---|---|
+| Capacity | 0.4 | Homes that fit on the site's surface parking (percentile among eligible sites) |
+| Feasibility | 0.3 | No parking required near transit (0.6), no freeway filtration (0.2), no flood/fire sliver (0.2) |
+| Need + fundability | 0.3 | Average of CalEnviroScreen housing-burden percentile and the 2026 CTCAC/HCD opportunity category (higher resource scores better for 9% tax credits) |
+
+ASSUMPTION: the weights are ours, chosen for a nonprofit picking a first site. They are one dict in `findit/rank.py`. Unknown tests are the same for every site today, so they do not change the order.
+
+Outputs: `output/<area>_ranked.csv`, `.geojson` and `_map.html` (sites coloured by rank; click one for its full checklist with source links).
+
 ## Code
 
 `findit/` holds reusable data helpers, adapted from our UCI Datathon 2026 In-N-Out site-selection project ([justinsiek/in-n-out](https://github.com/justinsiek/in-n-out), with Justin Siek, Austin H and Leo Wu-Hacohen) and reworked to download data in bulk instead of calling an API per point.
@@ -94,6 +121,10 @@ Caveats to state in the demo: OSM footprints are not legal parcels. Ownership as
 | `findit.traffic` | Caltrans AADT counts, freeway ramps |
 | `findit.maps` | folium grid heatmaps and tract choropleths on a percentile colour scale |
 | `findit.yigby` | SB 4 candidate sites, adjacent parking area, unit estimates |
+| `findit.arcgis` | Cached, paged bbox downloads from ArcGIS REST layers (FEMA, CAL FIRE, Caltrans, SCAG, OEHHA) |
+| `findit.screens` | SB 4 site tests: pass / fail / flag / unknown with source and date |
+| `findit.rank` | Units by zone density, capacity + feasibility + need/fundability score |
+| `findit.sitemap` | Ranked-site map with per-site checklist popups |
 
 Region constants: `findit.IRVINE_BBOX`, `ORANGE_COUNTY_BBOX`, `SOCAL_BBOX`, `SOCAL_COUNTIES`.
 
@@ -103,7 +134,12 @@ Region constants: `findit.IRVINE_BBOX`, `ORANGE_COUNTY_BBOX`, `SOCAL_BBOX`, `SOC
 uv sync
 cp .env.example .env   # add a free Census API key: https://api.census.gov/data/key_signup.html
 uv run python examples/irvine_demo.py
+
+# SB 4 sites: find, screen, rank (Irvine; --area oc for all of Orange County)
+uv run python examples/rank_sites.py
 ```
+
+The ranking pipeline needs no API key. The first run downloads OSM candidates, flood/fire/transit layers and the 5 MB opportunity map, then caches them.
 
 Needs [uv](https://docs.astral.sh/uv/) (installs Python 3.13 and pinned deps from `uv.lock`). Downloads are cached in `data/cache/` (gitignored). Never commit `.env`; this repo is public.
 
@@ -116,6 +152,15 @@ Needs [uv](https://docs.astral.sh/uv/) (installs Python 3.13 and pinned deps fro
 | Tract data | Census ACS 2023 5-year, TIGER/cartographic tracts 2023, LODES8 2022 | 2026-11-07 |
 | 30 du/ac default density | ASSUMPTION: Irvine treated as metropolitan-county jurisdiction; confirm against HCD's Mullin density list | 2026-11-07 |
 | Buildable area = adjacent surface parking | ASSUMPTION | 2026-11-07 |
+| Flood zones | FEMA NFHL layer 28 (fallback: OC Floodplains) | 2026-11-07 |
+| Fire zones | OC FHSZ LRA layer + CAL FIRE SRA 2007; CAL FIRE's 2025 LRA update not yet used | 2026-11-07 |
+| High-quality transit areas | Caltrans CA HQ Transit Areas | 2026-11-07 |
+| Freeways | Caltrans CRS Functional Classification, F_System 1-2 | 2026-11-07 |
+| Parcel zoning | SCAG Zoning_poly_OR (2024). ASSUMPTION: SCAG codes 11xx and 16xx allow housing | 2026-11-07 |
+| Housing burden | CalEnviroScreen 5.0 (OEHHA) | 2026-11-07 |
+| Opportunity category | CTCAC/HCD 2026 Opportunity Map | 2026-11-07 |
+| 10% overlap = fail, less = flag | ASSUMPTION: OSM outlines are not survey-grade | 2026-11-07 |
+| Ranking weights 0.4 / 0.3 / 0.3 | ASSUMPTION | 2026-11-07 |
 
 ## What is real and what is mocked
 
@@ -123,7 +168,13 @@ Needs [uv](https://docs.astral.sh/uv/) (installs Python 3.13 and pinned deps fro
 |---|---|
 | Candidate faith / private-college sites (OSM) | working |
 | Adjacent parking area and unit estimate | working, rough |
-| Hazard and zoning screens | not built yet |
+| Flood and fire exclusion screens (FEMA NFHL, OC LRA + CAL FIRE SRA) | working, live data |
+| Parking waiver near transit (Caltrans HQTA) | working; straight-line 1/2 mile, not walking distance |
+| Freeway 500 ft filtration flag (Caltrans CRS) | working |
+| Parcel APN and zoning density rule (SCAG Zoning_poly_OR) | working; zone-code mapping is an assumption |
+| Need and fundability (CalEnviroScreen 5.0, CTCAC/HCD 2026 Opportunity Map) | working, tract level |
+| Ranking | working; weights are assumptions |
+| Fault zone, wetlands, farmland, habitat, hazardous site, industrial buffers, tenants, historic, urban location | **unknown** for every site: no verified free layer wired in |
 | Ownership confirmation | not possible from free data; proxy only |
 
 ## Where it gets things wrong
@@ -131,6 +182,9 @@ Needs [uv](https://docs.astral.sh/uv/) (installs Python 3.13 and pinned deps fro
 - OSM footprints are not legal parcels; some churches are mapped as a point or a building only.
 - Public-college filter is a name list; an unlisted public campus could slip through.
 - Parking lots shared between neighbours are counted for each site.
+- Transit areas are straight-line 1/2-mile circles; SB 4 measures walking distance, so edge sites may not get the parking waiver.
+- Zoning and APN come from the parcel under the site's interior point; a church spread over several parcels shows one.
+- Fire screen uses the county LRA layer, not CAL FIRE's 2025 LRA maps, which may mark more land Very High and change some results.
 
 ## Data and privacy
 
