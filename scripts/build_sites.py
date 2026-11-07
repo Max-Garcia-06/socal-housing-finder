@@ -23,10 +23,17 @@ M = 3310  # California Albers, metres
 FT = 0.3048
 WELL_BUFFER_M = 3200 * FT          # SB 4: >3,200 ft from oil/gas extraction or refining facility
 DENSITY_RES = 30                   # Mullin default density, metropolitan county (HCD fact sheet)
+DENSITY_SUBURBAN = 20             # HCD default density list (2020 Census update): OC "suburban" jurisdictions
+SUBURBAN_CITIES = {"La Palma", "Laguna Beach", "Laguna Woods", "Los Alamitos", "Villa Park"}
+HEAVY_IND_FT, IND_ADJ_M = 1200, 6  # SB 4: >1,200 ft from heavy industrial; adjoining-industrial check
 DENSITY_NONRES = 40                # SB 4 non-residential zone density (HCD fact sheet)
 BUILDABLE_SHARE = 0.5              # ASSUMPTION: half the parcel (parking / open area) is buildable; sanctuary stays
 COST_PER_UNIT = (450_000, 700_000) # ASSUMPTION: coastal-California affordable cost range cited at a 2023 state oversight hearing
 MIN_ACRES_RANKED = 0.5             # ASSUMPTION: smaller lots rarely pencil for a nonprofit rental
+
+APR_SRC = "https://data.ca.gov/dataset/housing-element-annual-progress-report-apr-data-by-jurisdiction-and-year"
+# Terner Center (2023) county table for Orange County churches, parcels >= 10,000 sq ft (github.com/Terner-Center/SB4-Analysis)
+TERNER_OC = {"acres": 1907, "parcels": 707, "median_acres": 1.6, "transit_acres_pct": 26.52}
 
 PRECEDENTS = [
     dict(name="Legacy Square", city="Santa Ana", lat=33.749858, lon=-117.865506, units=93, year="2023 (open)",
@@ -41,6 +48,16 @@ PRECEDENTS = [
          partner="Related California + Neighborhood Congregational Church", law="SB 4",
          note="Scaled from 72 to ~30 homes after federal cuts; city committed $6.71M; state LHTF $2.5M to the city.",
          src="https://www.lagunabeachindy.com/news/city-commits-6-71m-in-funding-for-affordable-housing-project/article_f60c6735-3a80-42e6-a47d-164c19c713c1.html"),
+    # From HCD Annual Progress Report Table A (city-reported applications), data.ca.gov; see data/reference/
+    dict(name="Church of the Blessed Sacrament", city="Placentia", lat=33.886064, lon=-117.861808, units=65, year="Approved (2022 APR)",
+         partner="Blessed Sacrament Episcopal Church", law="Pre-SB 4",
+         note="City reported 64 lower-income homes + 1 other on church land.", src=APR_SRC),
+    dict(name="Melia (Victory Baptist Church)", city="Anaheim", lat=33.835294, lon=-117.976049, units=59, year="Entitled (2020 APR)",
+         partner="Victory Baptist Church", law="Rezoning, not SB 4",
+         note="Mostly market-rate (53 above-moderate, 6 moderate): a church-land project that needed a rezoning. SB 4 requires 100% affordable.", src=APR_SRC),
+    dict(name="Our Lady of Peace Church + homes", city="Irvine", lat=33.700484, lon=-117.769150, units=68, year="Pending (2025 APR)",
+         partner="Our Lady of Peace parish", law="Not SB 4 (mostly market-rate)",
+         note="59 above-moderate, 3 moderate, 6 very-low-income homes reported by the city.", src=APR_SRC),
 ]
 
 
@@ -68,8 +85,9 @@ def main():
     zn = pd.DataFrame(json.loads((RAW / "religious_zoning.json").read_text())).drop_duplicates("APN24")
     p = p.merge(zn, on="APN24", how="left")
     p["zone_res"] = p["ZN24_SCAG"].fillna("").str.startswith("11")
-    p["density"] = np.where(p["zone_res"], DENSITY_RES, DENSITY_NONRES)
-    p.loc[p["ZN24_SCAG"].isna(), "density"] = DENSITY_RES
+    res_density = np.where(p["CITY"].isin(SUBURBAN_CITIES), DENSITY_SUBURBAN, DENSITY_RES)
+    p["density"] = np.where(p["zone_res"] | p["ZN24_SCAG"].isna(), res_density, DENSITY_NONRES)
+    p["suburban"] = p["CITY"].isin(SUBURBAN_CITIES)
 
     # Flood (FEMA SFHA, county DFIRM copy)
     p["flood_share"] = share_covered(pm, load("flood").to_crs(M))
@@ -86,6 +104,14 @@ def main():
         w = wells[wells["WellStatus"].isin(status)][["geometry"]]
         near = gpd.sjoin_nearest(pm[["pid", "geometry"]], w, distance_col="d").groupby("pid")["d"].min()
         p[col] = (near.reindex(p["pid"]).values / FT).round()
+
+    # Industrial (SCAG LU24 13xx): heavy industrial (132x) within 1,200 ft fails; adjoining any industrial parcel is a caution
+    ind = load("industrial").to_crs(M)
+    heavy = ind[ind["LU24"].str.startswith("132")][["geometry"]]
+    near = gpd.sjoin_nearest(pm[["pid", "geometry"]], heavy, distance_col="d").groupby("pid")["d"].min()
+    p["heavy_ft"] = (near.reindex(p["pid"]).values / FT).round()
+    adj = gpd.sjoin(pm[["pid", "geometry"]].assign(geometry=pm.buffer(IND_ADJ_M)), ind[["geometry", "LU24"]], predicate="intersects")
+    p["ind_adjoin"] = p["pid"].map(adj.groupby("pid")["LU24"].apply(lambda x: ",".join(sorted(set(x))))).fillna("")
 
     # High-quality transit areas (Caltrans): parking waiver proxy
     hq = load("hqta").to_crs(M)
@@ -151,10 +177,15 @@ def main():
         t["parking"] = ("pass", f"In a high-quality transit area ({r.hqta_agency}): no parking can be required") if r.hqta \
             else ("info", f"Outside high-quality transit areas: up to 1 space per home (~{int(r.units_est)} spaces)")
         t["slope"] = ("caution" if r.SLOPE and r.SLOPE > 15 else "pass", f"SCAG slope class {int(r.SLOPE or 0)}")
+        if r.heavy_ft < HEAVY_IND_FT:
+            t["industrial"] = ("fail", f"Heavy-industrial parcel {int(r.heavy_ft):,} ft away (limit 1,200 ft)")
+        elif r.ind_adjoin:
+            t["industrial"] = ("caution", f"Adjoins an industrial parcel (SCAG land use {r.ind_adjoin}); check SB 4's adjoining-industrial rule. Title V sites not checked")
+        else:
+            t["industrial"] = ("pass", f"No adjoining industrial parcel; nearest heavy industrial {int(r.heavy_ft):,} ft. Title V sites not checked")
         for k, label in [("fault", "Earthquake fault zone (CGS layer requires a token)"),
                          ("wetland", "Wetlands, habitat, farmland, conservation easement"),
-                         ("historic", "Historic structures / existing tenants on site"),
-                         ("industrial", "Industrial-use buffers (1,200 ft heavy, 1,600 ft Title V)")]:
+                         ("historic", "Historic structures / existing tenants on site")]:
             t[k] = ("unknown", label + ": not checked")
         return t
 
@@ -192,7 +223,7 @@ def main():
     cols = ["pid", "APN24", "CITY", "ACRES", "SLOPE", "lat", "lon", "ZN24_CITY", "ZN24_SCAG", "zone_res", "density",
             "units_max", "units_est", "parking_req", "hqta", "oppcat", "CIscoreP", "HousBurd", "HousBurd_Pctl",
             "Poverty_Pctl", "he_low", "he_total", "name", "street", "ein", "precedent", "tests", "fails", "verdict",
-            "score", "rank", "funding", "cost_lo", "cost_hi", "well_active_ft"]
+            "score", "rank", "funding", "cost_lo", "cost_hi", "well_active_ft", "suburban", "heavy_ft", "ind_adjoin"]
     out = p[cols].copy()
     out["ACRES"] = out["ACRES"].round(2)
     for c in ["CIscoreP", "HousBurd", "HousBurd_Pctl", "Poverty_Pctl"]:
@@ -211,9 +242,14 @@ def main():
     wells_gj = json.loads(buf.to_json(drop_id=True))
     wells_gj["features"][0]["properties"] = {}
 
+    big = out[out.ACRES >= 10000 / 43560]
+    bench = {"terner": TERNER_OC, "ours": {"acres": int(round(big.ACRES.sum())), "parcels": int(len(big)),
+             "median_acres": round(float(big.ACRES.median()), 2),
+             "transit_acres_pct": round(100 * float(big[big.hqta].ACRES.sum() / big.ACRES.sum()), 1)}}
+    print("Terner benchmark:", bench)
     (OUT / "sites.js").write_text("window.SITES=" + json.dumps(recs, default=str) + ";\nwindow.PARCELS=" + json.dumps(gj)
                                   + ";\nwindow.WELLS=" + json.dumps(wells_gj) + ";\nwindow.PRECEDENTS=" + json.dumps(PRECEDENTS)
-                                  + ";\nwindow.BUILT='" + pd.Timestamp.now().strftime("%Y-%m-%d") + "';\n")
+                                  + ";\nwindow.BENCH=" + json.dumps(bench) + ";\nwindow.BUILT='" + pd.Timestamp.now().strftime("%Y-%m-%d") + "';\n")
     likely = out[out.verdict == "likely"]
     print(f"{len(out)} religious parcels; {len(likely)} likely eligible; {int((out.score > 0).sum())} ranked")
     print("excluded by:", pd.Series([f for fs in out.fails for f in fs]).value_counts().to_dict())

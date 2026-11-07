@@ -26,6 +26,10 @@ LAYERS = {
     "religious_parcels": dict(
         url="https://maps.scag.ca.gov/scaggis/rest/services/LDX/Existinglanduse_poly_OR/MapServer/0",
         where="LU24='1245'", fields="APN24,CITY,ACRES,SLOPE,GEOID20,LU24,LU24_2ND,YEAR", page=1000),
+    # Industrial parcels (SCAG LU24 13xx) for SB 4's industrial-adjacency and buffer tests
+    "industrial": dict(
+        url="https://maps.scag.ca.gov/scaggis/rest/services/LDX/Existinglanduse_poly_OR/MapServer/0",
+        where="LU24 LIKE '13%'", fields="APN24,LU24", page=2000),
     # Housing-element sites (adopted 6th cycle), to flag church parcels a city already counts
     "he_sites": dict(
         url="https://maps.scag.ca.gov/scaggis/rest/services/LDX/HousingElementSite_poly_scag/MapServer/0",

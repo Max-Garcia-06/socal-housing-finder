@@ -97,6 +97,7 @@
       <div class="stat"><b id="s2">–</b><span>pass every checked SB 4 test</span></div>
       <div class="stat"><b id="s3">–</b><span>homes possible (est.)<span class="asm">ASSUMPTION</span></span></div>
     </div>
+    <div class="sub" id="bench" style="margin-top:8px"></div>
   </header>
   <div id="listView" style="display:flex;flex-direction:column;min-height:0;flex:1">
     <div class="filters">
@@ -166,7 +167,7 @@ const TESTS = {
   parking: ["Parking requirement", SRC.hqta],
   slope: ["Buildable slope", SRC.scag_zn],
   fault: ["Earthquake fault zone", SRC.hcd], wetland: ["Wetlands / habitat / farmland", SRC.hcd],
-  historic: ["No historic demolition, no tenants displaced", SRC.hcd], industrial: ["Industrial buffers", SRC.hcd],
+  historic: ["No historic demolition, no tenants displaced", SRC.hcd], industrial: ["Industrial buffers (1,200 ft heavy; adjoining)", SRC.scag_lu],
 };
 const FUND = {
   lihtc9: ["9% LIHTC (TCAC)", "Competitive tax credits. This tract is High/Highest Resource on the 2026 TCAC/HCD Opportunity Map, which TCAC uses in scoring.", "https://www.treasurer.ca.gov/ctcac/"],
@@ -190,6 +191,7 @@ document.getElementById("s1").textContent = fmt(S.length);
 document.getElementById("s2").textContent = fmt(likely.length);
 document.getElementById("s3").textContent = "~" + fmt(Math.round(likely.filter(s => s.ACRES >= .5).reduce((a, s) => a + s.units_est, 0) / 100) * 100);
 document.getElementById("built").textContent = window.BUILT;
+document.getElementById("bench").innerHTML = `✓ Cross-check: our ${fmt(BENCH.ours.acres)} acres of OC church land (parcels ≥10,000 sq ft) vs. Terner Center's independent ${fmt(BENCH.terner.acres)}. <a href="https://github.com/Terner-Center/SB4-Analysis" target="_blank" style="color:inherit">source</a>`;
 const cities = [...new Set(S.map(s => s.CITY))].sort();
 document.getElementById("city").innerHTML += cities.map(c => `<option>${c}</option>`).join("");
 
@@ -212,11 +214,11 @@ S.forEach(s => {
 });
 const parcelLayer = L.geoJSON(PARCELS, { style: { color: "#B85C3E", weight: 2, fillOpacity: .15 } });
 let shape = null;
-PRECEDENTS.forEach(p => L.marker([p.lat, p.lon], { icon: L.divIcon({ className: "", html: '<div class="star">★</div>', iconSize: [18, 18], iconAnchor: [9, 9] }) })
-  .addTo(map).bindTooltip(`<b>${p.name}</b> · ${p.units} homes · ${p.year}<br>${p.partner}<br><i>${p.law}</i>`));
+PRECEDENTS.forEach(p => { const aff = !/market/i.test(p.law + p.note); L.marker([p.lat, p.lon], { icon: L.divIcon({ className: "", html: `<div class="star">${aff ? "★" : "☆"}</div>`, iconSize: [18, 18], iconAnchor: [9, 9] }) })
+  .addTo(map).bindTooltip(`<b>${p.name}</b>, ${p.city} · ${p.units} homes · ${p.year}<br>${p.partner}<br><i>${p.law}</i><br>${p.note}`, { maxWidth: 300 }); });
 const legend = L.control({ position: "bottomleft" });
 legend.onAdd = () => { const d = L.DomUtil.create("div", "legend"); d.innerHTML =
-  `<i style="background:#B85C3E"></i>Top-ranked (score 70+)<br><i style="background:#D97757"></i>Strong (55–69)<br><i style="background:#E9A98D"></i>Eligible, lower rank<br><i style="background:#8C877C"></i>Excluded by an SB 4 test<br><span class="star" style="font-size:13px">★</span> Built / proposed church housing<br><label><input type="checkbox" id="wells"> Oil &amp; gas wells: 3,200 ft no-build buffer</label>`; return d; };
+  `<i style="background:#B85C3E"></i>Top-ranked (score 70+)<br><i style="background:#D97757"></i>Strong (55–69)<br><i style="background:#E9A98D"></i>Eligible, lower rank<br><i style="background:#8C877C"></i>Excluded by an SB 4 test<br><span class="star" style="font-size:13px">★</span> Affordable homes on church land<br><span class="star" style="font-size:13px">☆</span> Church land, mostly market-rate (not SB 4)<br><label><input type="checkbox" id="wells"> Oil &amp; gas wells: 3,200 ft no-build buffer</label>`; return d; };
 legend.addTo(map);
 document.getElementById("wells").onchange = e => e.target.checked ? wellLayer.addTo(map) : map.removeLayer(wellLayer);
 
@@ -247,14 +249,14 @@ function render() {
 render();
 
 // ---------- detail ----------
-document.getElementById("back").onclick = () => { document.getElementById("detail").classList.remove("on"); document.getElementById("listView").style.display = "flex"; document.querySelector(".stats").style.display = "grid"; document.querySelector("header .sub").style.display = "block"; if (shape) map.removeLayer(shape); history.replaceState(null, "", "#"); };
+document.getElementById("back").onclick = () => { document.getElementById("detail").classList.remove("on"); document.getElementById("listView").style.display = "flex"; document.querySelector(".stats").style.display = "grid"; document.getElementById("bench").style.display = "block"; document.querySelector("header .sub").style.display = "block"; if (shape) map.removeLayer(shape); history.replaceState(null, "", "#"); };
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => tab(t.dataset.t));
 function tab(k) { document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.dataset.t === k)); document.querySelectorAll(".pane").forEach(p => p.classList.toggle("on", p.id === "p-" + k)); }
 const icon = { pass: "✓", fail: "✕", caution: "!", unknown: "?", info: "i" };
 
 function open(pid) {
   const s = byId[pid]; history.replaceState(null, "", "#site=" + pid);
-  document.getElementById("listView").style.display = "none"; document.querySelector(".stats").style.display = "none"; document.querySelector("header .sub").style.display = "none";
+  document.getElementById("listView").style.display = "none"; document.querySelector(".stats").style.display = "none"; document.getElementById("bench").style.display = "none"; document.querySelector("header .sub").style.display = "none";
   document.getElementById("detail").classList.add("on"); tab("find");
   document.getElementById("dname").textContent = siteName(s);
   document.getElementById("dmeta").textContent = `${s.street ? title(s.street) + ", " : ""}${s.CITY} · APN ${s.APN24} · ${s.ACRES} acres · zoned ${s.ZN24_CITY || "unknown"}`;
@@ -266,7 +268,7 @@ function open(pid) {
   shape = L.geoJSON(feat, { style: { color: "#FFB38F", weight: 3, fillColor: "#D97757", fillOpacity: .28 } }).addTo(map);
   map.flyToBounds(shape.getBounds(), { maxZoom: 17, duration: 1.2, paddingTopLeft: [40, 40] });
 
-  const t = s.tests, order = ["owner", "flood", "fire", "oil", "parking", "slope", "fault", "wetland", "historic", "industrial"];
+  const t = s.tests, order = ["owner", "flood", "fire", "oil", "industrial", "parking", "slope", "fault", "wetland", "historic"];
   document.getElementById("p-find").innerHTML = `
     <div class="kpis">
       <div class="kpi"><b>~${s.units_est} homes</b><span>half the lot at ${s.density} homes/acre<span class="asm">ASSUMPTION</span> · up to ${s.units_max} on the whole parcel</span></div>
@@ -278,7 +280,7 @@ function open(pid) {
     ${order.map(k => `<div class="test"><div class="dot d-${t[k][0]}">${icon[t[k][0]]}</div><div><span class="tl">${TESTS[k][0]}</span><div class="ev">${t[k][1]} · <a href="${TESTS[k][1]}" target="_blank">source</a></div></div></div>`).join("")}
     ${s.he_total ? `<div class="note">The city's housing element already lists this parcel for ${fmt(s.he_total)} homes (${fmt(s.he_low)} lower-income). <a href="${SRC.he}" target="_blank">SCAG</a></div>` : ""}
     ${s.precedent ? `<div class="note">★ This parcel is the site of <b>${s.precedent}</b>.</div>` : ""}
-    <div class="note">Density: city zone ${s.ZN24_CITY || "unknown"} is ${s.zone_res ? "residential in SCAG's zoning data, so 30 homes/acre (default density for a metropolitan county)" : "not a residential category in SCAG's zoning data, so 40 homes/acre"}, plus one extra story of height. <a href="${SRC.hcd}" target="_blank">HCD SB 4 fact sheet</a>. Density bonus law can add more, so these are floors.</div>`;
+    <div class="note">Density: city zone ${s.ZN24_CITY || "unknown"} is ${s.zone_res ? `residential in SCAG's zoning data, so ${s.density} homes/acre (HCD default density for a ${s.suburban ? "suburban" : "metropolitan"} jurisdiction)` : "not a residential category in SCAG's zoning data, so 40 homes/acre"}, plus one extra story of height. <a href="${SRC.hcd}" target="_blank">HCD SB 4 fact sheet</a>, <a href="https://www.hcd.ca.gov/community-development/housing-element/housing-element-memos/docs/defaultdensity2020censusupdate.pdf" target="_blank">HCD default densities</a>. Density bonus law can add more, so these are floors.</div>`;
 
   document.getElementById("p-clear").innerHTML = `
     <h3>Approval path: ministerial, no CEQA</h3>
@@ -294,7 +296,7 @@ function open(pid) {
       ["Objective standards check", `Ask ${s.CITY} for its written objective standards (setbacks, design). Subjective review cannot block the project.`],
       ["100% affordable, deed-restricted", "Lower-income homes; up to 20% moderate-income and 5% staff housing allowed. 55-year rental restriction."],
       ["Prevailing wage", "Required. Budget for it: one developer estimates SB 4 projects can cost up to 30% more. " + `<a href="${SRC.pw}" target="_blank">source</a>`],
-      ["Remaining unknowns", "Fault zones, wetlands, historic structures, tenants, industrial buffers: not checked by this tool."],
+      ["Remaining unknowns", "Fault zones, wetlands, historic structures, tenants and Title V sites: not checked by this tool."],
     ].map(([a, b], i) => `<div class="test"><div class="dot d-info">${i + 1}</div><div><span class="tl">${a}</span><div class="ev">${b}</div></div></div>`).join("")}
     <div class="note">Rules from the <a href="${SRC.hcd}" target="_blank">HCD SB 4 fact sheet (Apr 2026)</a>. SB 4 sunsets 1 Jan 2036.</div>`;
 
