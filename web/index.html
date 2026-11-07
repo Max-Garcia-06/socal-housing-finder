@@ -32,6 +32,27 @@
   .chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
   select{border:1px solid var(--line);border-radius:999px;padding:4px 8px;font:12px Inter;background:#fff}
   .scroll{overflow:auto;flex:1;min-height:0}
+  .deal{border-bottom:1px solid var(--line);background:var(--panel)}
+  .dealhead{padding:8px 20px 10px;cursor:pointer;font:600 13px Inter}
+  .dealhead span{display:block;color:var(--muted);font-weight:500;font-size:11.5px;margin-top:2px}
+  .dealhead:before{content:"▸ ";color:var(--clay)}.deal.open .dealhead:before{content:"▾ "}
+  .dealbody{padding:0 20px 12px;display:none;max-height:46vh;overflow:auto}
+  .deal.open .dealbody{display:block}
+  .presets{display:flex;flex-wrap:wrap;gap:6px;padding:0 20px 10px}
+  .grp{font:600 11px Inter;letter-spacing:.06em;text-transform:uppercase;color:var(--clay-d);margin:12px 0 6px}
+  .row{display:grid;grid-template-columns:118px 1fr 64px;gap:8px;align-items:center;font-size:12px;margin:4px 0}
+  .row output{text-align:right;color:var(--muted);font-size:11.5px}
+  input[type=range]{width:100%;accent-color:var(--clay)}
+  .tog{display:flex;align-items:center;gap:7px;font-size:12px;margin:4px 0}
+  .tog input{accent-color:var(--clay)}
+  .badges{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+  .bdg{font-size:10px;font-weight:600;padding:1px 6px;border-radius:5px;background:#EFE9DE;color:#6B5A48}
+  .bdg.g{background:#E1EDDF;color:#2F5D2E}.bdg.b{background:#E0E8F1;color:#33557A}
+  .ctab{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
+  .ctab td{padding:5px 0;border-bottom:1px dashed var(--line);vertical-align:top}
+  .ctab td:last-child{text-align:right;white-space:nowrap;font-weight:600}
+  .ctab tr.tot td{border-top:1.5px solid var(--ink);border-bottom:0;font-weight:700}
+  .ctab .ev{font-weight:400}
   .card{padding:12px 20px;border-bottom:1px solid var(--line);cursor:pointer;display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center}
   .card:hover,.card.sel{background:#F1ECE2}
   .rk{font:600 16px "Source Serif 4",serif;color:var(--muted);text-align:center}
@@ -100,12 +121,41 @@
     <div class="sub" id="bench" style="margin-top:8px"></div>
   </header>
   <div id="listView" style="display:flex;flex-direction:column;min-height:0;flex:1">
-    <div class="filters">
-      <span class="chip on" data-f="likely">Likely eligible</span>
-      <span class="chip" data-f="transit">Transit: 0 parking</span>
-      <span class="chip" data-f="need">High need</span>
-      <span class="chip" data-f="big">2+ acres</span>
-      <select id="city"><option value="">All 34 cities</option></select>
+    <div class="filters" style="border-bottom:0;padding-bottom:6px">
+      <span style="font-size:11.5px;color:var(--muted);margin-right:2px">Deal type:</span>
+      <span class="chip" data-p="lihtc9">9% tax credit deal</span>
+      <span class="chip" data-p="tod">Transit-oriented (AHSC)</span>
+      <span class="chip" data-p="need">Deepest need</span>
+      <span class="chip" data-p="small">Small infill</span>
+      <span class="chip" data-p="reset">Reset</span>
+    </div>
+    <div class="deal" id="deal">
+      <div class="dealhead" id="dealhead">Customize: priorities &amp; filters <span id="dealsum"></span></div>
+      <div class="dealbody">
+        <div class="grp">What matters most (ranking)</div>
+        <div class="row"><label>Yield (homes)</label><input type="range" id="w_yield" min="0" max="10" value="4"><output id="o_w_yield"></output></div>
+        <div class="row"><label>Community need</label><input type="range" id="w_need" min="0" max="10" value="3"><output id="o_w_need"></output></div>
+        <div class="row"><label>Financing fit</label><input type="range" id="w_fin" min="0" max="10" value="2"><output id="o_w_fin"></output></div>
+        <div class="row"><label>Entitlement certainty</label><input type="range" id="w_cert" min="0" max="10" value="2"><output id="o_w_cert"></output></div>
+        <div class="grp">Deal size</div>
+        <div class="row"><label>Min homes</label><input type="range" id="minU" min="0" max="150" step="5" value="0"><output id="o_minU"></output></div>
+        <div class="row"><label>Max homes</label><input type="range" id="maxU" min="10" max="300" step="10" value="300"><output id="o_maxU"></output></div>
+        <div class="grp">Cost</div>
+        <div class="row"><label>Max total cost</label><input type="range" id="maxC" min="5" max="150" step="5" value="150"><output id="o_maxC"></output></div>
+        <label class="tog"><input type="checkbox" id="t_park"> No parking required (near frequent transit)</label>
+        <div class="grp">Community need</div>
+        <div class="row"><label>Min need index</label><input type="range" id="minN" min="0" max="95" step="5" value="0"><output id="o_minN"></output></div>
+        <div class="grp">Financing fit</div>
+        <label class="tog"><input type="checkbox" id="t_9"> 9% LIHTC-competitive area (High/Highest Resource)</label>
+        <label class="tog"><input type="checkbox" id="t_ahsc"> AHSC transit-eligible</label>
+        <div class="grp">Site readiness</div>
+        <label class="tog"><input type="checkbox" id="t_clean"> Clean screen (no cautions)</label>
+        <label class="tog"><input type="checkbox" id="t_he"> City already counts it in its housing element</label>
+        <label class="tog"><input type="checkbox" id="t_irs"> Contactable owner (IRS-registered congregation on site)</label>
+        <label class="tog"><input type="checkbox" id="t_ex"> Show excluded sites</label>
+        <div class="row" style="grid-template-columns:118px 1fr"><label>City</label><select id="city"><option value="">All 34 cities</option></select></div>
+        <div class="note">Need index = average of CalEnviroScreen 5.0 housing-burden and poverty percentiles. Financing fit = TCAC opportunity area + transit. Preset ranges are judgment calls<span class="asm">ASSUMPTION</span>, not TCAC rules.</div>
+      </div>
     </div>
     <div class="scroll" id="list"></div>
   </div>
@@ -142,7 +192,7 @@
 <script>
 const S = window.SITES, byId = Object.fromEntries(S.map(s => [s.pid, s]));
 const fmt = n => n == null ? "–" : n.toLocaleString("en-US");
-const money = n => "$" + (n / 1e6).toFixed(n >= 1e8 ? 0 : 1) + "M";
+const money = n => !n ? "$0" : "$" + (n / 1e6).toFixed(n >= 1e8 ? 0 : 1) + "M";
 const SRC = {
   hcd: "https://www.hcd.ca.gov/sites/default/files/docs/planning-and-community/aff-hsg-faith-higher-ed-sb-4.pdf",
   scag_lu: "https://maps.scag.ca.gov/scaggis/rest/services/LDX/Existinglanduse_poly_OR/MapServer",
@@ -228,7 +278,7 @@ PRECEDENTS.forEach(p => { const aff = !/market/i.test(p.law + p.note); L.marker(
   .addTo(map).bindTooltip(`<b>${p.name}</b>, ${p.city} · ${p.units} homes · ${p.year}<br>${p.partner}<br><i>${p.law}</i><br>${p.note}`, { maxWidth: 300 }); });
 const legend = L.control({ position: "bottomleft" });
 legend.onAdd = () => { const d = L.DomUtil.create("div", "legend"); d.innerHTML =
-  `<i style="background:#B85C3E"></i>Top-ranked (score 70+)<br><i style="background:#D97757"></i>Strong (55–69)<br><i style="background:#E9A98D"></i>Eligible, lower rank<br><i style="background:#8C877C"></i>Excluded by an SB 4 test<br><span class="star" style="font-size:13px">★</span> Affordable homes on church land<br><span class="star" style="font-size:13px">☆</span> Church land, mostly market-rate (not SB 4)<br><label><input type="checkbox" id="wells"> Oil &amp; gas wells: 3,200 ft no-build buffer</label>`; return d; };
+  `<i style="background:#B85C3E"></i>Top 10% for your priorities<br><i style="background:#D97757"></i>Top 40%<br><i style="background:#E9A98D"></i>Eligible, lower match<br><i style="background:#8C877C"></i>Excluded by an SB 4 test<br><span class="star" style="font-size:13px">★</span> Affordable homes on church land<br><span class="star" style="font-size:13px">☆</span> Church land, mostly market-rate (not SB 4)<br><label><input type="checkbox" id="wells"> Oil &amp; gas wells: 3,200 ft no-build buffer</label>`; return d; };
 legend.addTo(map);
 document.getElementById("wells").onchange = e => e.target.checked ? wellLayer.addTo(map) : map.removeLayer(wellLayer);
 
@@ -236,26 +286,71 @@ function title(n) { return n.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()
 function siteName(s) { return s.name ? title(s.name) : `Religious facility, APN ${s.APN24}`; }
 
 // ---------- list ----------
-const F = { likely: true, transit: false, need: false, big: false, city: "" };
-document.querySelectorAll(".chip").forEach(c => c.onclick = () => { F[c.dataset.f] = !F[c.dataset.f]; c.classList.toggle("on"); render(); });
-document.getElementById("city").onchange = e => { F.city = e.target.value; render(); };
+const $ = id => document.getElementById(id);
+const CTRL = ["w_yield", "w_need", "w_fin", "w_cert", "minU", "maxU", "maxC", "minN"];
+const TOG = ["t_park", "t_9", "t_ahsc", "t_clean", "t_he", "t_irs", "t_ex"];
+const DEFAULTS = { w_yield: 4, w_need: 3, w_fin: 2, w_cert: 2, minU: 0, maxU: 300, maxC: 150, minN: 0 };
+const PRESETS = {
+  lihtc9: { w_yield: 4, w_need: 2, w_fin: 9, w_cert: 6, minU: 40, maxU: 90, t_9: 1, t_clean: 1 },
+  tod: { w_yield: 5, w_need: 4, w_fin: 7, w_cert: 3, minU: 20, t_park: 1, t_ahsc: 1 },
+  need: { w_yield: 3, w_need: 10, w_fin: 1, w_cert: 2, minU: 20, minN: 75 },
+  small: { w_yield: 1, w_need: 4, w_fin: 2, w_cert: 8, minU: 10, maxU: 35, t_clean: 1 },
+};
+function setCtl(v) { CTRL.forEach(k => $(k).value = v[k] ?? DEFAULTS[k]); TOG.forEach(k => $(k).checked = !!v[k]); }
+document.querySelectorAll(".chip[data-p]").forEach(c => c.onclick = () => {
+  document.querySelectorAll(".chip[data-p]").forEach(x => x.classList.toggle("on", x === c && c.dataset.p !== "reset"));
+  setCtl(c.dataset.p === "reset" ? {} : PRESETS[c.dataset.p]); render(); });
+[...CTRL, ...TOG, "city"].forEach(k => $(k).addEventListener("input", () => { document.querySelectorAll(".chip[data-p]").forEach(x => x.classList.remove("on")); render(); }));
+$("dealhead").onclick = () => $("deal").classList.toggle("open");
+window.applyPreset = k => document.querySelector(`.chip[data-p="${k}"]`).click();
+
+function scoreOf(s, w) {
+  if (s.c_yield == null) return 0;
+  const tot = w.y + w.n + w.f + w.c || 1;
+  return Math.round(100 * (w.y * s.c_yield + w.n * s.c_need + w.f * s.c_fin + w.c * s.c_cert) / tot);
+}
 function filtered() {
-  return S.filter(s => (!F.likely || s.score > 0) && (!F.transit || s.hqta) && (!F.need || s.HousBurd_Pctl >= 75)
-    && (!F.big || s.ACRES >= 2) && (!F.city || s.CITY === F.city)).sort((a, b) => b.score - a.score || b.units_est - a.units_est);
+  const v = Object.fromEntries(CTRL.map(k => [k, +$(k).value])), t = Object.fromEntries(TOG.map(k => [k, $(k).checked]));
+  const w = { y: v.w_yield, n: v.w_need, f: v.w_fin, c: v.w_cert };
+  CTRL.forEach(k => $("o_" + k).textContent = k === "maxC" ? (v[k] >= 150 ? "any" : "$" + v[k] + "M") : k === "maxU" && v[k] >= 300 ? "any" : k === "minN" ? (v[k] ? v[k] + "th pct" : "any") : v[k]);
+  const tw = w.y + w.n + w.f + w.c || 1;
+  $("dealsum").textContent = `yield ${Math.round(100 * w.y / tw)}% · need ${Math.round(100 * w.n / tw)}% · financing ${Math.round(100 * w.f / tw)}% · certainty ${Math.round(100 * w.c / tw)}%`;
+  S.forEach(s => s.score = scoreOf(s, w));
+  const mid = s => (s.cost_lo + s.cost_hi) / 2 / 1e6;
+  return S.filter(s => (t.t_ex ? true : s.c_yield != null)
+    && s.units_est >= v.minU && (v.maxU >= 300 || s.units_est <= v.maxU) && (v.maxC >= 150 || mid(s) <= v.maxC)
+    && (!t.t_park || s.parking_req === 0) && (!v.minN || s.need_idx >= v.minN)
+    && (!t.t_9 || ["High Resource", "Highest Resource"].includes(s.oppcat)) && (!t.t_ahsc || s.hqta)
+    && (!t.t_clean || s.n_caution === 0) && (!t.t_he || s.he_total > 0) && (!t.t_irs || !!s.name)
+    && (!$("city").value || s.CITY === $("city").value)).sort((a, b) => b.score - a.score || b.units_est - a.units_est);
+}
+function badges(s) {
+  const b = [];
+  if (["High Resource", "Highest Resource"].includes(s.oppcat)) b.push('<span class="bdg b">9% area</span>');
+  if (s.hqta) b.push('<span class="bdg b">AHSC · 0 parking</span>');
+  if (s.n_caution === 0 && s.verdict === "likely") b.push('<span class="bdg g">clean screen</span>');
+  if (s.he_total) b.push('<span class="bdg">in housing element</span>');
+  if (s.need_idx >= 75) b.push('<span class="bdg">high need</span>');
+  return b.join("");
 }
 function render() {
   const rows = filtered();
-  document.getElementById("list").innerHTML = rows.slice(0, 80).map((s, i) => `
+  const top = rows.filter(s => s.score > 0).map(s => s.score), q = p => top.length ? top[Math.floor((top.length - 1) * p)] : 0;
+  const q1 = q(0.1), q2 = q(0.4);
+  $("list").innerHTML = rows.slice(0, 80).map((s, i) => `
     <div class="card" data-id="${s.pid}"><div class="rk">${s.score ? i + 1 : "–"}</div>
       <div><div class="nm">${siteName(s)}</div>
-      <div class="meta">${s.CITY} · ${s.ACRES} ac · ~${s.units_est} homes${s.hqta ? " · transit" : ""}${s.verdict === "excluded" ? " · excluded: " + s.fails.join(", ") : ""}</div>
-      <div class="bar"><i style="width:${s.score}%"></i></div></div>
-      <div class="sc"><b>${s.score || "–"}</b><span>impact score</span></div></div>`).join("") +
-    `<div class="meta" style="padding:12px 20px">${fmt(rows.length)} sites match. Score = homes 35% + need 30% + fundability 20% + feasibility 15%.</div>`;
+      <div class="meta">${s.CITY} · <b>~${s.units_est} homes</b> · ${money(s.cost_lo)}–${money(s.cost_hi)} · ${s.parking_req ? s.parking_req + " parking" : "0 parking"}${s.verdict === "excluded" ? " · excluded: " + s.fails.join(", ") : ""}</div>
+      <div class="badges">${badges(s)}</div></div>
+      <div class="sc"><b>${s.score || "–"}</b><span>match</span></div></div>`).join("") +
+    `<div class="meta" style="padding:12px 20px">${fmt(rows.length)} sites match · ${fmt(rows.reduce((a, s) => a + s.units_est, 0))} homes. Match score reflects your priorities above.</div>`;
   document.querySelectorAll(".card").forEach(c => c.onclick = () => open(+c.dataset.id));
   const ids = new Set(rows.map(s => s.pid));
-  S.forEach(s => dots[s.pid].setStyle({ fillOpacity: ids.has(s.pid) ? .92 : .12, opacity: ids.has(s.pid) ? 1 : .2 }));
+  S.forEach(s => { const on = ids.has(s.pid);
+    const fc = s.verdict === "excluded" ? "#8C877C" : !s.score ? "#C9C3B6" : s.score >= q1 ? "#B85C3E" : s.score >= q2 ? "#D97757" : "#E9A98D";
+    dots[s.pid].setStyle({ fillColor: fc, fillOpacity: on ? .92 : .1, opacity: on ? 1 : .15 }); });
 }
+setCtl({});
 render();
 
 // ---------- detail ----------
@@ -263,6 +358,23 @@ document.getElementById("back").onclick = () => { document.getElementById("detai
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => tab(t.dataset.t));
 function tab(k) { document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.dataset.t === k)); document.querySelectorAll(".pane").forEach(p => p.classList.toggle("on", p.id === "p-" + k)); }
 const icon = { pass: "✓", fail: "✕", caution: "!", unknown: "?", info: "i" };
+
+function costTable(s) {
+  const C = window.COST, u = s.units_est, base = [C.psf_lo * C.nrsf, C.psf_hi * C.nrsf];
+  const r = (a, b) => a === b ? money(a) : `${money(a)}–${money(b)}`, k = n => "$" + Math.round(n / 1000) + "k";
+  const pk = s.parking_req * C.parking;
+  return `<h3>Total development cost: ${r(s.cost_lo, s.cost_hi)}</h3>
+  <div class="meta">${u} homes × ${C.nrsf} rentable sq ft<span class="asm">ASSUMPTION</span> × $${C.psf_lo}–$${C.psf_hi} per sq ft, the all-in cost of recent California tax-credit projects.</div>
+  <table class="ctab">
+    <tr><td>Hard construction (~${Math.round(C.hard * 100)}%)<div class="ev">labor + materials; <a href="https://nlihc.org/resource/terner-center-finds-labor-and-materials-drive-construction-costs-california-april-13" target="_blank">Terner: hard costs were >60% of CA totals</a></div></td><td>${r(u * base[0] * C.hard, u * base[1] * C.hard)}</td></tr>
+    <tr><td>Soft costs, fees, financing (~${Math.round((1 - C.hard) * 100)}%)<div class="ev">design, permits, loans, reserves, developer fee; incl. ~${k(C.fees)}/home city impact fees (<a href="https://www.rand.org/pubs/research_reports/RRA3743-1.html" target="_blank">RAND 2025</a>)</div></td><td>${r(u * base[0] * (1 - C.hard), u * base[1] * (1 - C.hard))}</td></tr>
+    <tr><td>Prevailing wage premium (high case)<div class="ev">SB 4 requires it; ~${k(C.pw)}/home vs. non-prevailing-wage projects (<a href="https://ternercenter.berkeley.edu/research-and-policy/lihtc-construction-costs-prevailing-wages/" target="_blank">Terner 2024</a>)</div></td><td>${r(0, u * C.pw)}</td></tr>
+    <tr><td>Land<div class="ev">church ground-leases instead of selling, as at Legacy Square and Wesley Village. The benchmark already includes typical land costs, so the range is conservative.</div></td><td>$0</td></tr>
+    <tr class="tot"><td>Total · ${k(s.cost_lo / u)}–${k(s.cost_hi / u)} per home</td><td>${r(s.cost_lo, s.cost_hi)}</td></tr>
+  </table>
+  <div class="note"><b>Parking:</b> ${s.parking_req ? `${s.parking_req} spaces may be required. If built as a garage over the existing lot, ~${money(pk)} at ${k(C.parking)}/space (<a href="https://its.ucla.edu/?p=95739" target="_blank">UCLA 2025</a>), part of the range above.` : `none can be required here (frequent transit). Skipping a garage of ${u} spaces avoids ~${money(u * C.parking)} at ${k(C.parking)}/space (<a href="https://its.ucla.edu/?p=95739" target="_blank">UCLA 2025</a>).`}
+  Check: Wesley Village (47 homes, 2017) cost ~$18.9M, about $402k per home.</div>`;
+}
 
 function open(pid) {
   const s = byId[pid]; history.replaceState(null, "", "#site=" + pid);
@@ -272,7 +384,7 @@ function open(pid) {
   document.getElementById("dmeta").textContent = `${s.street ? title(s.street) + ", " : ""}${s.CITY} · APN ${s.APN24} · ${s.ACRES} acres · zoned ${s.ZN24_CITY || "unknown"}`;
   const v = document.getElementById("dverdict");
   v.className = "verdict v-" + s.verdict;
-  v.textContent = s.verdict === "likely" ? `Likely SB 4 eligible · impact score ${s.score || "n/a"}` : `Excluded: fails ${s.fails.join(", ")} test`;
+  v.textContent = s.verdict === "likely" ? `Likely SB 4 eligible · match ${s.score || "n/a"}` : `Excluded: fails ${s.fails.join(", ")} test`;
   if (shape) map.removeLayer(shape);
   const feat = PARCELS.features[pid];
   shape = L.geoJSON(feat, { style: { color: "#FFB38F", weight: 3, fillColor: "#D97757", fillOpacity: .28 } }).addTo(map);
@@ -311,10 +423,7 @@ function open(pid) {
     <div class="note">Rules from the <a href="${SRC.hcd}" target="_blank">HCD SB 4 fact sheet (Apr 2026)</a>. SB 4 sunsets 1 Jan 2036.</div>`;
 
   document.getElementById("p-fund").innerHTML = `
-    <div class="kpis">
-      <div class="kpi"><b>${money(s.cost_lo)}–${money(s.cost_hi)}</b><span>total development cost for ~${s.units_est} homes at $450k–$700k/home<span class="asm">ASSUMPTION</span> (<a href="${SRC.cost}" target="_blank">coastal CA range</a>)</span></div>
-      <div class="kpi"><b>$0 land</b><span>if the church ground-leases instead of selling, as at Legacy Square and Wesley Village</span></div>
-    </div>
+    ${costTable(s)}
     <h3>Likely funding stack</h3>
     ${s.funding.map(k => `<a class="fund" href="${FUND[k][2]}" target="_blank"><b>${FUND[k][0]}</b><span>${FUND[k][1]}</span></a>`).join("")}
     <h3>Developers who have built on church land in OC</h3>

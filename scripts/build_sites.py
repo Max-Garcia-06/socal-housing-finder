@@ -28,7 +28,14 @@ SUBURBAN_CITIES = {"La Palma", "Laguna Beach", "Laguna Woods", "Los Alamitos", "
 HEAVY_IND_FT, IND_ADJ_M = 1200, 6  # SB 4: >1,200 ft from heavy industrial; adjoining-industrial check
 DENSITY_NONRES = 40                # SB 4 non-residential zone density (HCD fact sheet)
 BUILDABLE_SHARE = 0.5              # ASSUMPTION: half the parcel (parking / open area) is buildable; sanctuary stays
-COST_PER_UNIT = (450_000, 700_000) # ASSUMPTION: coastal-California affordable cost range cited at a 2023 state oversight hearing
+# Total development cost (TDC) model. Every input is sourced or marked ASSUMPTION; see README "How we estimate cost".
+NRSF_PER_HOME = 850                # ASSUMPTION: net rentable sq ft per home (Legacy Square units are 602-1,115 sq ft)
+TDC_PSF_LO = 481                   # RAND 2025: avg LIHTC TDC per net rentable sq ft, San Diego metro (CA's lowest)
+TDC_PSF_HI = 625                   # RAND 2025: LA metro ~1.3x San Diego -> 1.3 x 481 (ASSUMPTION: OC priced like LA metro)
+PW_PREMIUM = 94_000                # Terner 2024: prevailing-wage LIHTC new construction ~$94k/home more (high case only)
+HARD_SHARE = 0.60                  # Terner 2020: hard costs were >60% of total cost in California
+IMPACT_FEES = 29_000               # RAND 2025: avg municipal impact/development fees per unit in California
+PARKING_PER_SPACE = 52_000         # UCLA ITS 2025: avg above-ground structured parking cost per space (17 US cities)
 MIN_ACRES_RANKED = 0.5             # ASSUMPTION: smaller lots rarely pencil for a nonprofit rental
 
 APR_SRC = "https://data.ca.gov/dataset/housing-element-annual-progress-report-apr-data-by-jurisdiction-and-year"
@@ -203,6 +210,13 @@ def main():
     feas = 1 - r["flood_share"].clip(0, 1) * 0 - (r["SLOPE"].fillna(0) > 15) * 0.5 \
         - r["tests"].map(lambda t: sum(v[0] == "caution" for v in t.values())) * 0.15
     p.loc[rank, "score"] = (100 * (0.35 * homes + 0.30 * need + 0.20 * fund + 0.15 * feas.clip(0, 1))).round(0)
+    # Components (0-1) for the client-side "what matters most" sliders
+    p.loc[rank, "c_yield"] = homes.round(3)
+    p.loc[rank, "c_need"] = need.round(3)
+    p.loc[rank, "c_fin"] = fund.round(3)
+    p.loc[rank, "c_cert"] = feas.clip(0, 1).round(3)
+    p["need_idx"] = ((p["HousBurd_Pctl"].fillna(50) + p["Poverty_Pctl"].fillna(50)) / 2).round(0)
+    p["n_caution"] = p["tests"].map(lambda t: sum(v[0] == "caution" for v in t.values()))
     p["score"] = p["score"].fillna(0).astype(int)
     p["rank"] = p["score"].rank(ascending=False, method="first").where(p["score"] > 0)
 
@@ -217,13 +231,17 @@ def main():
         return f
 
     p["funding"] = p.apply(funding, axis=1)
-    p["cost_lo"] = p["units_est"] * COST_PER_UNIT[0]
-    p["cost_hi"] = p["units_est"] * COST_PER_UNIT[1]
+    per_lo = TDC_PSF_LO * NRSF_PER_HOME
+    per_hi = TDC_PSF_HI * NRSF_PER_HOME + PW_PREMIUM
+    p["cost_lo"] = p["units_est"] * per_lo
+    p["cost_hi"] = p["units_est"] * per_hi
+    p["parking_cost"] = p["parking_req"] * PARKING_PER_SPACE
 
     cols = ["pid", "APN24", "CITY", "ACRES", "SLOPE", "lat", "lon", "ZN24_CITY", "ZN24_SCAG", "zone_res", "density",
             "units_max", "units_est", "parking_req", "hqta", "oppcat", "CIscoreP", "HousBurd", "HousBurd_Pctl",
             "Poverty_Pctl", "he_low", "he_total", "name", "street", "ein", "precedent", "tests", "fails", "verdict",
-            "score", "rank", "funding", "cost_lo", "cost_hi", "well_active_ft", "suburban", "heavy_ft", "ind_adjoin"]
+            "score", "rank", "funding", "cost_lo", "cost_hi", "well_active_ft", "suburban", "heavy_ft", "ind_adjoin",
+            "c_yield", "c_need", "c_fin", "c_cert", "need_idx", "n_caution", "parking_cost"]
     out = p[cols].copy()
     out["ACRES"] = out["ACRES"].round(2)
     for c in ["CIscoreP", "HousBurd", "HousBurd_Pctl", "Poverty_Pctl"]:
@@ -249,7 +267,9 @@ def main():
     print("Terner benchmark:", bench)
     (OUT / "sites.js").write_text("window.SITES=" + json.dumps(recs, default=str) + ";\nwindow.PARCELS=" + json.dumps(gj)
                                   + ";\nwindow.WELLS=" + json.dumps(wells_gj) + ";\nwindow.PRECEDENTS=" + json.dumps(PRECEDENTS)
-                                  + ";\nwindow.BENCH=" + json.dumps(bench) + ";\nwindow.BUILT='" + pd.Timestamp.now().strftime("%Y-%m-%d") + "';\n")
+                                  + ";\nwindow.BENCH=" + json.dumps(bench) + ";\nwindow.COST=" + json.dumps(dict(
+                                      nrsf=NRSF_PER_HOME, psf_lo=TDC_PSF_LO, psf_hi=TDC_PSF_HI, pw=PW_PREMIUM, hard=HARD_SHARE,
+                                      fees=IMPACT_FEES, parking=PARKING_PER_SPACE)) + ";\nwindow.BUILT='" + pd.Timestamp.now().strftime("%Y-%m-%d") + "';\n")
     likely = out[out.verdict == "likely"]
     print(f"{len(out)} religious parcels; {len(likely)} likely eligible; {int((out.score > 0).sum())} ranked")
     print("excluded by:", pd.Series([f for fs in out.fails for f in fs]).value_counts().to_dict())
