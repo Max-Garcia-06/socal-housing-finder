@@ -479,11 +479,14 @@ function orgForm() {
       <div><label class="h">Site risk you'll take on</label><div class="opts">${rad("risk", "low", o.risk === "low", "Clean screens only")}${rad("risk", "med", o.risk !== "low", "Cautions OK if workable")}</div></div>
       <div class="full"><label class="h">Service area <span class="meta" style="font-weight:400">(none = all of Orange County)</span></label>
         <div class="citygrid">${cities.map(c => `<label><input type="checkbox" name="cities" value="${c}" ${o.cities.includes(c) ? "checked" : ""}> ${c}</label>`).join("")}</div></div>
-      <div class="full" style="display:flex;gap:8px;align-items:center"><button class="btn" type="submit" style="margin-top:0">Show my best matches</button><span class="meta">You can fine-tune everything in "Customize" afterward.</span></div>
+      <div class="full" style="display:flex;gap:8px;align-items:center"><button class="btn" type="button" id="ofsave" style="margin-top:0">Show my best matches</button><span class="meta">You can fine-tune everything in "Customize" afterward.</span></div>
     </form></div>`;
   d.classList.add("on"); d.scrollTop = 0;
   $("ofclose").onclick = () => d.classList.remove("on");
-  $("of").onsubmit = e => { e.preventDefault(); const f = new FormData(e.target);
+  // No form submission: the hosted page is sandboxed without allow-forms, so read the fields on click instead
+  $("of").addEventListener("submit", e => e.preventDefault());
+  $("of").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.tagName === "INPUT") { e.preventDefault(); $("ofsave").click(); } });
+  $("ofsave").onclick = () => { const f = new FormData($("of"));
     ORG = { name: (f.get("name") || "").trim(), pops: f.getAll("pops"), prios: f.getAll("prios"), cities: f.getAll("cities"), fin: f.get("fin"),
       minU: Math.max(0, +f.get("minU") || 0), maxU: Math.max(5, +f.get("maxU") || 300), maxC: Math.min(150, Math.max(5, +f.get("maxC") || 150)),
       garage: f.get("garage") === "1", risk: f.get("risk") };
