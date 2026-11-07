@@ -59,10 +59,22 @@ LAYERS = {
     "ces": dict(
         url="https://services1.arcgis.com/PCHfdHz4GlDNAhBb/arcgis/rest/services/calenviroscreen50results_F_070126_gdb/FeatureServer/2",
         where="county='Orange'", fields="tract,CIscore,CIscoreP,Population,ApproxLoc,Poverty,Poverty_Pctl,HousBurd,HousBurd_Pctl", page=1000),
+    # HUD LIHTC Qualified Census Tracts and Small Area Difficult Development Areas (130% basis boost)
+    "qct": dict(
+        url="https://services.arcgis.com/VTyQ9soqVukalItT/arcgis/rest/services/QUALIFIED_CENSUS_TRACTS_2026/FeatureServer/0",
+        where="STATE='06' AND COUNTY='059'", fields="GEOID,NAME", page=1000),
+    "dda": dict(
+        url="https://services.arcgis.com/VTyQ9soqVukalItT/arcgis/rest/services/Difficult_Development_Areas_2026/FeatureServer/0",
+        where="1=1", fields="ZCTA5,DDA_CODE,DDA_NAME,DDA_TYPE", page=1000, envelope=True),
     # IRS-registered places of worship (EO BMF, geocoded), HIFLD Open copy: names + EIN
     "irs_worship": dict(
         url="https://services.arcgis.com/XG15cJAlne2vxtgt/arcgis/rest/services/All_Places_Of_Worship__HiFLD_Open_/FeatureServer/42",
         where="1=1", fields="EIN,NAME,STREET,CITY,ZIP,NTEE_CD,SCORE,MATCH_TYPE", page=2000, envelope=True),
+}
+
+FILES = {
+    # HCD 6th-cycle RHNA progress by jurisdiction (data.ca.gov): permits vs. targets by income level
+    "rhna6.csv": "https://publish.data.ca.gov/dataset/ff082e96-72f7-4443-9747-8b8dadc15671/resource/1e80a9cf-724c-432d-8374-e9708a6a92dc/download",
 }
 
 DOWNLOADS = {
@@ -197,6 +209,12 @@ if __name__ == "__main__":
         socal_counties()
         city_bounds()
         city_contacts()
+    for name, url in FILES.items():
+        if (not only or name in only) and not (RAW / name).exists():
+            r = requests.get(url, headers=HEADERS, timeout=300)
+            r.raise_for_status()
+            (RAW / name).write_bytes(r.content)
+            print("wrote", name)
     for name, url in DOWNLOADS.items():
         if not only or name in only:
             try:

@@ -39,6 +39,11 @@ IMPACT_FEES = 29_000               # RAND 2025: avg municipal impact/development
 PARKING_PER_SPACE = 52_000         # UCLA ITS 2025: avg above-ground structured parking cost per space (17 US cities)
 MIN_ACRES_RANKED = 0.5             # ASSUMPTION: smaller lots rarely pencil for a nonprofit rental
 
+# HCD 2026 State Income Limits, Orange County, by household size 1-8 (hcd.ca.gov income-limits-2026.pdf; checked 2026-11-07)
+INCOME_2026 = {"ami4": 138600, "src": "https://www.hcd.ca.gov/sites/default/files/docs/grants-and-funding/income-limits-2026.pdf",
+               "extremely_low": [27600, 31550, 35500, 39400, 42600, 45750, 50040, 55720],
+               "very_low": [65150, 74450, 83750, 93050, 100500, 107950, 115400, 122850],
+               "low": [104200, 119100, 134000, 148850, 160800, 172700, 184600, 196500]}
 APR_SRC = "https://data.ca.gov/dataset/housing-element-annual-progress-report-apr-data-by-jurisdiction-and-year"
 # Terner Center (2023) county table for Orange County churches, parcels >= 10,000 sq ft (github.com/Terner-Center/SB4-Analysis)
 TERNER_OC = {"acres": 1907, "parcels": 707, "median_acres": 1.6, "transit_acres_pct": 26.52}
@@ -126,6 +131,21 @@ def main():
     hit = gpd.sjoin(cent, hq[["geometry", "agency_primary", "hqta_type"]], predicate="within")
     p["hqta"] = p["pid"].isin(hit["pid"])
     p["hqta_agency"] = p["pid"].map(hit.drop_duplicates("pid").set_index("pid")["agency_primary"]).fillna("")
+
+    # HUD QCT (tract) and Small Area DDA (ZIP): eligible for the 130% LIHTC basis boost
+    for lyr, col in [("qct", "qct"), ("dda", "dda")]:
+        g = load(lyr).to_crs(M)
+        hit = gpd.sjoin(cent, g[["geometry"]], predicate="within")
+        p[col] = p["pid"].isin(hit["pid"])
+
+    # City readiness: HCD 6th-cycle RHNA progress (lower-income = very low + low)
+    rh = pd.read_csv(RAW / "rhna6.csv")
+    rh["CITY"] = rh["Jurisdiction"].str.title().replace({"Orange County": "Unincorporated"})
+    rh["li_permits"] = rh["VLI UNITS"] + rh["LI UNITS"]
+    rh["li_target"] = rh["RHNA VLI"] + rh["RHNA LI"]
+    rh["li_pct"] = (100 * rh["li_permits"] / rh["li_target"]).round(0)
+    rh["rhna_period"] = rh["Planning Period"]
+    p = p.merge(rh[["CITY", "li_permits", "li_target", "li_pct", "rhna_period"]].drop_duplicates("CITY"), on="CITY", how="left")
 
     # Tract need: CalEnviroScreen 5.0 (housing burden, poverty, CES percentile)
     p["tract"] = p["GEOID20"].str[:11]
@@ -243,7 +263,8 @@ def main():
             "units_max", "units_est", "parking_req", "hqta", "oppcat", "CIscoreP", "HousBurd", "HousBurd_Pctl",
             "Poverty_Pctl", "he_low", "he_total", "name", "street", "ein", "precedent", "tests", "fails", "verdict",
             "score", "rank", "funding", "cost_lo", "cost_hi", "well_active_ft", "suburban", "heavy_ft", "ind_adjoin",
-            "c_yield", "c_need", "c_fin", "c_cert", "need_idx", "n_caution", "parking_cost"]
+            "c_yield", "c_need", "c_fin", "c_cert", "need_idx", "n_caution", "parking_cost",
+            "qct", "dda", "li_permits", "li_target", "li_pct", "rhna_period"]
     out = p[cols].copy()
     out["ACRES"] = out["ACRES"].round(2)
     for c in ["CIscoreP", "HousBurd", "HousBurd_Pctl", "Poverty_Pctl"]:
@@ -269,7 +290,7 @@ def main():
     print("Terner benchmark:", bench)
     (OUT / "sites.js").write_text("window.SITES=" + json.dumps(recs, default=str) + ";\nwindow.PARCELS=" + json.dumps(gj)
                                   + ";\nwindow.WELLS=" + json.dumps(wells_gj) + ";\nwindow.PRECEDENTS=" + json.dumps(PRECEDENTS)
-                                  + ";\nwindow.CONTACTS=" + json.dumps({c["Jurisdiction"].replace("City of ", ""): c for c in json.loads((RAW / "city_contacts.json").read_text()) if c["Jurisdiction"].startswith("City of ")})
+                                  + ";\nwindow.INCOME=" + json.dumps(INCOME_2026) + ";\nwindow.CONTACTS=" + json.dumps({c["Jurisdiction"].replace("City of ", ""): c for c in json.loads((RAW / "city_contacts.json").read_text()) if c["Jurisdiction"].startswith("City of ")})
                                   + ";\nwindow.COUNTIES=" + (RAW / "socal_counties.geojson").read_text() + ";\nwindow.BENCH=" + json.dumps(bench) + ";\nwindow.COST=" + json.dumps(dict(
                                       nrsf=NRSF_PER_HOME, psf_lo=TDC_PSF_LO, psf_hi=TDC_PSF_HI, esc_lo=ESC_LO, esc_hi=ESC_HI, pw=PW_PREMIUM, hard=HARD_SHARE,
                                       fees=IMPACT_FEES, parking=PARKING_PER_SPACE)) + ";\nwindow.BUILT='" + pd.Timestamp.now().strftime("%Y-%m-%d") + "';\n")

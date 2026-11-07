@@ -169,7 +169,9 @@
         <div class="grp">Financing fit</div>
         <label class="tog"><input type="checkbox" id="t_9"> 9% LIHTC-competitive area (High/Highest Resource) <span class="i" data-tip="Tract is High or Highest Resource on the 2026 TCAC/HCD Opportunity Map. TCAC uses these categories in scoring 9% tax credit applications for large-family housing. This is a signal, not a full TCAC score.">i</span></label>
         <label class="tog"><input type="checkbox" id="t_ahsc"> AHSC transit-eligible <span class="i" data-tip="In a Caltrans High Quality Transit Area. AHSC (Strategic Growth Council) funds transit-oriented affordable housing; Legacy Square won $25.4M. AHSC has more requirements than this proxy checks.">i</span></label>
+        <label class="tog"><input type="checkbox" id="t_boost"> 130% basis boost (HUD QCT or DDA) <span class="i" data-tip="Site is in a HUD Qualified Census Tract or Small Area Difficult Development Area (HUD eGIS layers; confirm the designation year). Tax-credit projects there can claim up to 130% eligible basis, i.e. more tax-credit equity.">i</span></label>
         <div class="grp">Site readiness</div>
+        <label class="tog"><input type="checkbox" id="t_behind"> City behind on lower-income target (&lt;25% permitted) <span class="i" data-tip="HCD 6th-cycle RHNA progress (data.ca.gov): permits for very-low + low-income homes as a share of the city&#x27;s 2021–2029 target. Cities far behind face state pressure and are more likely to help fund and fast-track affordable projects.">i</span></label>
         <label class="tog"><input type="checkbox" id="t_clean"> Clean screen (no cautions) <span class="i" data-tip="No &#x27;caution&#x27; results: not partly in a FEMA flood or Very High fire zone, no idle oil well within 3,200 ft, not adjoining an industrial parcel, not steep.">i</span></label>
         <label class="tog"><input type="checkbox" id="t_he"> City already counts it in its housing element <span class="i" data-tip="Parcel&#x27;s APN appears in the city&#x27;s adopted 6th-cycle housing element site inventory (SCAG). The city already counts it toward its state housing target, a political tailwind.">i</span></label>
         <label class="tog"><input type="checkbox" id="t_irs"> Contactable owner (IRS-registered congregation on site) <span class="i" data-tip="An IRS-registered place of worship (IRS exempt-organization list via HIFLD) is geocoded within 75 m of the parcel, so there&#x27;s a named organization to call. Not proof of ownership; confirm with a title report.">i</span></label>
@@ -334,7 +336,7 @@ function siteName(s) { return s.name ? title(s.name) : `Religious facility, APN 
 // ---------- list ----------
 const $ = id => document.getElementById(id);
 const CTRL = ["w_yield", "w_need", "w_fin", "w_cert", "minU", "maxU", "maxC", "minN"];
-const TOG = ["t_park", "t_9", "t_ahsc", "t_clean", "t_he", "t_irs", "t_ex"];
+const TOG = ["t_park", "t_9", "t_ahsc", "t_boost", "t_clean", "t_behind", "t_he", "t_irs", "t_ex"];
 const DEFAULTS = { w_yield: 4, w_need: 3, w_fin: 2, w_cert: 2, minU: 0, maxU: 300, maxC: 150, minN: 0 };
 const PRESETS = {
   lihtc9: { w_yield: 4, w_need: 2, w_fin: 9, w_cert: 6, minU: 40, maxU: 90, t_9: 1, t_clean: 1 },
@@ -367,7 +369,7 @@ function filtered() {
     && s.units_est >= v.minU && (v.maxU >= 300 || s.units_est <= v.maxU) && (v.maxC >= 150 || mid(s) <= v.maxC)
     && (!t.t_park || s.parking_req === 0) && (!v.minN || s.need_idx >= v.minN)
     && (!t.t_9 || ["High Resource", "Highest Resource"].includes(s.oppcat)) && (!t.t_ahsc || s.hqta)
-    && (!t.t_clean || s.n_caution === 0) && (!t.t_he || s.he_total > 0) && (!t.t_irs || !!s.name)
+    && (!t.t_boost || s.qct || s.dda) && (!t.t_behind || s.li_pct < 25) && (!t.t_clean || s.n_caution === 0) && (!t.t_he || s.he_total > 0) && (!t.t_irs || !!s.name)
     && (!$("city").value || s.CITY === $("city").value)).sort((a, b) => b.score - a.score || b.units_est - a.units_est);
 }
 function badges(s) {
@@ -375,7 +377,9 @@ function badges(s) {
   if (["High Resource", "Highest Resource"].includes(s.oppcat)) b.push('<span class="bdg b">9% area</span>');
   if (s.hqta) b.push('<span class="bdg b">AHSC · 0 parking</span>');
   if (s.n_caution === 0 && s.verdict === "likely") b.push('<span class="bdg g">clean screen</span>');
+  if (s.qct || s.dda) b.push('<span class="bdg b">basis boost</span>');
   if (s.he_total) b.push('<span class="bdg">in housing element</span>');
+  if (s.li_pct < 25) b.push(`<span class="bdg">city at ${s.li_pct}% of low-income goal</span>`);
   if (s.need_idx >= 75) b.push('<span class="bdg">high need</span>');
   return b.join("");
 }
@@ -419,7 +423,16 @@ function costTable(s) {
     <tr class="tot"><td>Total</td><td>${r(s.cost_lo, s.cost_hi)}</td></tr>
   </table>
   <div class="note"><b>How the numbers were built:</b> RAND reports costs in 2019 dollars; we escalate by Verisk's 2019–2024 construction-cost growth (+39% statewide, +44% LA; <a href="https://www.constructionowners.com/news/la-construction-costs-up-5-9-adding-challenges-to-fire-rebuilding" target="_blank">source</a>). 2025–26 increases are not added. Prevailing wage (required by SB 4) is <i>not</i> added separately: RAND names above-market wages as a key driver of tax-credit costs, so it is already in the benchmark (Terner puts the gap at ~${k(C.pw)}/home; <a href="https://ternercenter.berkeley.edu/research-and-policy/lihtc-construction-costs-prevailing-wages/" target="_blank">source</a>).
-  ${s.parking_req ? "" : `Skipping a ${u}-space garage avoids ~${money(u * C.parking)}.`} Check: Wesley Village (47 homes) cost ~$18.9M in 2017 dollars, ~$402k/home.</div>`;
+  ${s.parking_req ? "" : `Skipping a ${u}-space garage avoids ~${money(u * C.parking)}.`} Checks: Terner found California tax-credit applications paying prevailing wage averaged <b>$726k per home</b> (2020–23 applications, 2024 dollars; <a href="https://ternercenter.berkeley.edu/wp-content/uploads/2024/08/Low-Income-Housing-Tax-Credit-Construction-Costs-An-Analysis-of-Prevailing-Wages-August-2024.pdf" target="_blank">source</a>), inside our range. Wesley Village (47 homes) cost ~$18.9M in 2017 dollars, ~$402k/home.</div>`;
+}
+
+const boostTxt = s => s.qct || s.dda ? `In a HUD ${[s.qct && "Qualified Census Tract", s.dda && "Difficult Development Area"].filter(Boolean).join(" and ")}: eligible for up to a 130% basis boost (more tax-credit equity).` : "";
+const rhnaTxt = s => s.li_target ? `${s.CITY === "Unincorporated" ? "Unincorporated OC" : s.CITY} has permitted ${fmt(s.li_permits)} of its ${fmt(s.li_target)} lower-income homes (${s.li_pct}%) for ${s.rhna_period}.` : "";
+function incomeTable() {
+  const I = window.INCOME, row = (lab, a) => `<tr><td>${lab}</td><td>$${fmt(a[0])}</td><td>$${fmt(a[3])}</td></tr>`;
+  return `<table class="ctab"><tr><td><b>Orange County 2026 income limit</b></td><td><b>1 person</b></td><td><b>Family of 4</b></td></tr>
+    ${row("Extremely low (30% AMI)", I.extremely_low)}${row("Very low (50% AMI)", I.very_low)}${row("Low (80% AMI)", I.low)}</table>
+    <div class="ev" style="font-size:11px;margin-top:4px">Area median income $${fmt(I.ami4)} (family of 4). SB 4 homes must be 100% lower-income (up to the "low" limit; up to 20% moderate). Source: <a href="${I.src}" target="_blank">HCD 2026 State Income Limits</a>.</div>`;
 }
 
 // ---------- financing methodology ----------
@@ -431,12 +444,12 @@ const SRCWV = "https://www.multifamilybiz.com/news/7870/jamboree_housing_works_t
 function programFit(s) {
   const hi = ["High Resource", "Highest Resource"].includes(s.oppcat);
   return [
-    [hi ? "✓" : "~", "9% LIHTC (TCAC, competitive)", (hi ? `Tract is ${s.oppcat} on the 2026 TCAC/HCD map, which TCAC uses in scoring large-family 9% deals.` : `Tract is ${s.oppcat || "unrated"}: eligible, but it misses opportunity-area points, so it's less competitive.`) + " Federal 9% equity is capped per project (see stack above).", "https://www.treasurer.ca.gov/ctcac/"],
-    [s.units_est >= 50 ? "✓" : "~", "4% LIHTC + tax-exempt bonds (CDLAC) + state credits", `${s.units_est >= 50 ? `~${s.units_est} homes: big enough to spread bond-deal fixed costs` : `~${s.units_est} homes: small for a bond deal`} (ASSUMPTION: 50+ homes typical). Easier from 2026: the bond test dropped from 50% to 25% of basis, and CTCAC has $500M of state credits for 4% new construction this year.`, "https://www.treasurer.ca.gov/ctcac/2026/2026-credit-estimates.pdf"],
+    [hi ? "✓" : "~", "9% LIHTC (TCAC, competitive)", (hi ? `Tract is ${s.oppcat} on the 2026 TCAC/HCD map, which TCAC uses in scoring large-family 9% deals.` : `Tract is ${s.oppcat || "unrated"}: eligible, but it misses opportunity-area points, so it's less competitive.`) + " Federal 9% equity is capped per project (see stack above). " + boostTxt(s), "https://www.treasurer.ca.gov/ctcac/"],
+    [s.units_est >= 50 ? "✓" : "~", "4% LIHTC + tax-exempt bonds (CDLAC) + state credits", `${s.units_est >= 50 ? `~${s.units_est} homes: big enough to spread bond-deal fixed costs` : `~${s.units_est} homes: small for a bond deal`} (ASSUMPTION: 50+ homes typical). Easier from 2026: the bond test dropped from 50% to 25% of basis, and CTCAC has $500M of state credits for 4% new construction this year. ${boostTxt(s)}`, "https://www.treasurer.ca.gov/ctcac/2026/2026-credit-estimates.pdf"],
     [s.hqta ? "✓" : "~", "AHSC (Strategic Growth Council)", s.hqta ? "In a high-quality transit area. Legacy Square (church land, Santa Ana) won $25.4M." : "Not in a high-quality transit area, the strongest AHSC fit. AHSC has other project-area types; check the current guidelines.", "https://sgc.ca.gov/grant-programs/ahsc/"],
     ["✓", "HCD Multifamily Housing Program (MHP)", "State gap loans for affordable rental new construction; a 100% affordable SB 4 project fits.", "https://www.hcd.ca.gov/grants-and-funding/programs-active/multifamily-housing-program"],
     ["~", "Orange County Housing Finance Trust", `County + member-city gap loans. Confirm ${s.CITY} is a Trust member and check the current NOFA.`, "https://www.ochft.org/"],
-    ["~", "City funds (HOME, housing trust, fee waivers)", `Ask ${s.CITY}${s.he_total ? ", which already lists this parcel in its housing element," : ""}. Wesley Village got $3.6M in HOME funds; Laguna Beach committed $6.71M (~$231k/home) to its SB 4 church project.`, SRCWV],
+    ["~", "City funds (HOME, housing trust, fee waivers)", `Ask ${s.CITY}${s.he_total ? ", which already lists this parcel in its housing element," : ""}. ${rhnaTxt(s)} Wesley Village got $3.6M in HOME funds; Laguna Beach committed $6.71M (~$231k/home) to its SB 4 church project.`, SRCWV],
     ["✓", "FHLB San Francisco AHP", "Competitive gap grants through a member bank; Wesley Village received $460k.", "https://www.fhlbsf.com/"],
     ["~", "OC Supportive Housing NOFA", "Only if some homes are permanent supportive housing (Legacy Square set aside 33).", "https://housing.oc.gov/housing-development"],
   ];
@@ -455,7 +468,7 @@ function financing(s) {
   ${stackBar([["Equity", eq9, B, mid], ["Loan", perm9, P, mid], ["Soft", soft9, G, mid]])}
   <div class="meta" style="margin-top:8px"><b style="color:var(--ink)">4% + bond deal</b>: patterned on Wesley Village's actual financing</div>
   ${stackBar([["Equity", eq4, B, mid], ["Loan", perm4, P, mid], ["Soft", soft4, G, mid]])}
-  <div class="ev" style="font-size:11px;margin-top:6px"><b>Method.</b> 9%: equity ≈ 70% of cost, but TCAC caps one project at $2.5M/yr of federal credits (<a href="${SRC9}" target="_blank">TCAC reg. §10305(e)</a>; confirm the current figure); at ~$${F9.price.toFixed(2)} per credit<span class="asm">ASSUMPTION</span> over 10 years that is ≈${money(capEq)}, so larger sites shift cost into the gap. 4%: Wesley Village (47 homes, a 4% bond deal) was ~39% tax-credit equity ($7.45M), ~25% permanent loan ($4.8M, CCRC), ~19% city HOME ($3.6M) and ~2% AHP ($460k) (<a href="${SRCWV}" target="_blank">source</a>); Legacy Square's ~$1.91M/yr federal credits were ~37% of its $46.7M cost. Loan share assumed 25% for both<span class="asm">ASSUMPTION</span>; the real loan is sized to rents. California state credits are not modeled.</div>
+  <div class="ev" style="font-size:11px;margin-top:6px"><b>Method.</b> 9%: equity ≈ 70% of cost, but TCAC caps one project at $2.5M/yr of federal credits (<a href="${SRC9}" target="_blank">TCAC reg. §10305(e)</a>; confirm the current figure); at ~$${F9.price.toFixed(2)} per credit<span class="asm">ASSUMPTION</span> over 10 years that is ≈${money(capEq)}, so larger sites shift cost into the gap. 4%: Wesley Village (47 homes, a 4% bond deal) was ~39% tax-credit equity ($7.45M), ~25% permanent loan ($4.8M, CCRC), ~19% city HOME ($3.6M) and ~2% AHP ($460k) (<a href="${SRCWV}" target="_blank">source</a>); Legacy Square's ~$1.91M/yr federal credits were ~37% of its $46.7M cost. Loan share assumed 25% for both<span class="asm">ASSUMPTION</span>; the real loan is sized to rents. California state credits and the 130% QCT/DDA basis boost are not modeled${s.qct || s.dda ? " (this site qualifies, so real equity could be higher)" : ""}.</div>
   <h3>Program fit for this site</h3>
   ${programFit(s).map(([m, n, why, u]) => `<div class="fit"><div class="dot ${m === "✓" ? "d-pass" : m === "✗" ? "d-fail" : "d-caution"}">${m}</div><div><b>${n}</b> · <a href="${u}" target="_blank">program</a><div class="ev">${why}</div></div></div>`).join("")}
   <div class="note">✓ fits on criteria we can check · ~ possible, needs confirmation. Rules of thumb from public program criteria, not an award prediction.</div>`;
@@ -508,12 +521,14 @@ function deepDive(pid) {
       <div class="dcard"><h3>Who to call at the city</h3>
         <div class="test"><div class="dot d-info">☎</div><div><span class="tl">${s.CITY} Community Development</span><div class="ev">${C.Community_Dev__ || C.City_Hall__ || "number not listed"}${C.Community_Dev ? ` · <a href="${C.Community_Dev}" target="_blank">website</a>` : ""}</div></div></div>
         <div class="ev" style="margin-top:6px">Ask for the SB 4 / objective-standards checklist and whether the city has SB 4 projects in review. Source: <a href="https://www.ocgis.com/arcpub/rest/services/Map_Layers/Jurisdiction_Contacts/MapServer" target="_blank">OC GIS jurisdiction contacts</a>.</div>
+        ${rhnaTxt(s) ? `<div class="note">${rhnaTxt(s)}${s.li_pct < 25 ? " The city is behind on its lower-income target, a reason for it to help." : ""}</div>` : ""}
         ${s.he_total ? `<div class="note">The city already lists this parcel in its housing element for ${s.he_total} homes (${s.he_low} lower-income): a strong opening point.</div>` : ""}
         ${s.name ? `<div class="note">Congregation on record: <b>${title(s.name)}</b>${s.ein ? ` (IRS EIN ${s.ein})` : ""}. Matched by location; confirm ownership with a title report.</div>` : ""}</div>
       <div class="dcard"><h3>SB 4 eligibility</h3>${order.map(k => `<div class="test"><div class="dot d-${t[k][0]}">${icon[t[k][0]]}</div><div><span class="tl">${TESTS[k][0]}</span><div class="ev">${t[k][1]}</div></div></div>`).join("")}</div>
       <div class="dcard"><h3>Neighborhood &amp; need</h3>
         <div class="kpis" style="margin:0"><div class="kpi"><b>${s.need_idx}th</b><span>need index (housing burden + poverty)</span></div><div class="kpi"><b>${s.HousBurd ?? "–"}%</b><span>low-income households paying over half their income for housing</span></div>
         <div class="kpi"><b>${s.oppcat || "–"}</b><span>2026 TCAC/HCD Opportunity Map</span></div><div class="kpi"><b>${s.CIscoreP ?? "–"}th</b><span>CalEnviroScreen pollution + vulnerability percentile</span></div></div></div>
+      <div class="dcard wide"><h3>Who these homes would serve</h3>${incomeTable()}</div>
       <div class="dcard">${costTable(s)}</div>
       <div class="dcard">${financing(s)}</div>
       <div class="dcard"><h3>Nearest church-housing precedents</h3>${prec.map(p => `<div class="test"><div class="dot d-info">★</div><div><span class="tl">${p.name}, ${p.city}</span> · ${p.d.toFixed(1)} km<div class="ev">${p.units} homes · ${p.year} · ${p.partner}. ${p.note} <a href="${p.src}" target="_blank">source</a></div></div></div>`).join("")}</div>
@@ -561,6 +576,8 @@ function open(pid) {
     <h3>SB 4 site tests</h3>
     ${order.map(k => `<div class="test"><div class="dot d-${t[k][0]}">${icon[t[k][0]]}</div><div><span class="tl">${TESTS[k][0]}</span><div class="ev">${t[k][1]} · <a href="${TESTS[k][1]}" target="_blank">source</a></div></div></div>`).join("")}
     ${s.he_total ? `<div class="note">The city's housing element already lists this parcel for ${fmt(s.he_total)} homes (${fmt(s.he_low)} lower-income). <a href="${SRC.he}" target="_blank">SCAG</a></div>` : ""}
+    ${rhnaTxt(s) ? `<div class="note">City readiness: ${rhnaTxt(s)} <a href="https://data.ca.gov/dataset/rhna-progress-report" target="_blank">HCD</a></div>` : ""}
+    ${boostTxt(s) ? `<div class="note">${boostTxt(s)} <a href="https://www.huduser.gov/portal/datasets/qct.html" target="_blank">HUD</a></div>` : ""}
     ${s.precedent ? `<div class="note">★ This parcel is the site of <b>${s.precedent}</b>.</div>` : ""}
     <div class="note">Density: city zone ${s.ZN24_CITY || "unknown"} is ${s.zone_res ? `residential in SCAG's zoning data, so ${s.density} homes/acre (HCD default density for a ${s.suburban ? "suburban" : "metropolitan"} jurisdiction)` : "not a residential category in SCAG's zoning data, so 40 homes/acre"}, plus one extra story of height. <a href="${SRC.hcd}" target="_blank">HCD SB 4 fact sheet</a>, <a href="https://www.hcd.ca.gov/community-development/housing-element/housing-element-memos/docs/defaultdensity2020censusupdate.pdf" target="_blank">HCD default densities</a>. Density bonus law can add more, so these are floors.</div>`;
 
@@ -606,6 +623,7 @@ With respect,
   };
 
   document.getElementById("p-help").innerHTML = `
+    <h3>Who these homes would serve</h3>${incomeTable()}
     <h3>If a household in ${s.CITY} needs housing help now</h3>
     ${[["211 Orange County", "Dial 2-1-1 for shelter, rental help and referrals", "https://www.211oc.org"],
        ["OC Housing Authority", "Housing Choice Vouchers (Section 8) and waitlists", "https://www.ochousing.org"],
