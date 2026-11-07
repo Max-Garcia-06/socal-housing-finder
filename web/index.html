@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
 <title>Common Ground · SB 4 church-land finder for Orange County</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M16 3 L28 13 V29 H4 V13 Z%22 fill=%22%23D97757%22/%3E%3C/svg%3E">
@@ -14,7 +15,10 @@
     --clay:#D97757; --clay-d:#B85C3E; --clay-l:#F2D9CC;
     --pass:#5B8C5A; --fail:#B8483A; --caution:#C88A2A; --unknown:#9A968C; --info:#5A7FA8;
   }
+  :root{color-scheme:light}
   *{box-sizing:border-box}
+  input,select,textarea,button{color:var(--ink);font-family:Inter,system-ui,sans-serif}
+  input::placeholder,textarea::placeholder{color:#9A968C;opacity:1}
   html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:14px/1.45 Inter,system-ui,sans-serif}
   .app{display:grid;grid-template-columns:420px 1fr;height:100vh}
   aside{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
@@ -62,7 +66,7 @@
   .of{display:grid;grid-template-columns:1fr 1fr;gap:14px 20px}
   .of label.h{display:block;font:600 12.5px Inter;margin-bottom:5px}
   .of .hint{font-size:11px;color:var(--muted);margin-top:3px}
-  .of input[type=text],.of input[type=number],.of select{width:100%;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:13px Inter;background:#fff}
+  .of input[type=text],.of input[type=number],.of select{width:100%;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:13px Inter;background:#fff;color:var(--ink);-webkit-text-fill-color:var(--ink)}
   .of .opts{display:flex;flex-wrap:wrap;gap:6px}
   .of .opts label{border:1px solid var(--line);background:#fff;border-radius:999px;padding:5px 11px;font-size:12px;cursor:pointer;display:flex;gap:6px;align-items:center}
   .of .opts input{accent-color:var(--clay)}
