@@ -24,3 +24,7 @@ build/
 # Data
 data/raw/
 *.sqlite
+data/cache/
+
+# Generated maps
+*.html
