@@ -198,11 +198,21 @@ document.getElementById("city").innerHTML += cities.map(c => `<option>${c}</opti
 // ---------- map ----------
 const map = L.map("map", { zoomControl: false, preferCanvas: true }).setView([33.70, -117.83], 11);
 L.control.zoom({ position: "bottomright" }).addTo(map);
+const NO_TILES = !!window.NO_TILES;  // standalone/artifact build: remote tiles are blocked, draw city outlines instead
 const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services/";
-const gray = L.layerGroup([L.tileLayer(ESRI + "Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}", { maxZoom: 16, attribution: "Tiles &copy; Esri" }),
+const gray = NO_TILES ? L.layerGroup() : L.layerGroup([L.tileLayer(ESRI + "Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}", { maxZoom: 16, attribution: "Tiles &copy; Esri" }),
   L.tileLayer(ESRI + "Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}", { maxZoom: 16 })]).addTo(map);
 const sat = L.tileLayer(ESRI + "World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, attribution: "Imagery &copy; Esri, Maxar" });
-map.on("zoomend", () => { const z = map.getZoom(); if (z >= 16 && !map.hasLayer(sat)) { sat.addTo(map); map.removeLayer(gray); } else if (z < 16 && map.hasLayer(sat)) { gray.addTo(map); map.removeLayer(sat); } });
+if (window.CITY_BOUNDS) {
+  L.geoJSON(CITY_BOUNDS, { interactive: false, style: { color: "#FFFFFF", weight: 1.5, fillColor: "#E6E0D4", fillOpacity: 1 } }).addTo(map);
+  const best = {};
+  CITY_BOUNDS.features.forEach(f => { const n = f.properties.CITY; if (!/^[A-Za-z .]+$/.test(n) || /UNINCORPORATED/i.test(n)) return;
+    const b = L.geoJSON(f).getBounds(); const a = (b.getEast() - b.getWest()) * (b.getNorth() - b.getSouth());
+    if (!best[n] || a > best[n].a) best[n] = { a, c: b.getCenter() }; });
+  Object.entries(best).forEach(([n, v]) => L.marker(v.c, { interactive: false, icon: L.divIcon({ className: "", iconSize: [120, 14], iconAnchor: [60, 7],
+    html: `<div style="font:600 10px Inter;color:#9A958A;text-align:center;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap">${n}</div>` }) }).addTo(map));
+}
+if (!NO_TILES) map.on("zoomend", () => { const z = map.getZoom(); if (z >= 16 && !map.hasLayer(sat)) { sat.addTo(map); map.removeLayer(gray); } else if (z < 16 && map.hasLayer(sat)) { gray.addTo(map); map.removeLayer(sat); } });
 const color = s => s.verdict === "excluded" ? "#8C877C" : s.score >= 70 ? "#B85C3E" : s.score >= 55 ? "#D97757" : s.score > 0 ? "#E9A98D" : "#C9C3B6";
 const wellLayer = L.geoJSON(WELLS, { style: { color: "#1F1E1D", weight: 1, dashArray: "4 3", fillColor: "#1F1E1D", fillOpacity: .12 }, interactive: false });
 const dots = {};
@@ -266,7 +276,7 @@ function open(pid) {
   if (shape) map.removeLayer(shape);
   const feat = PARCELS.features[pid];
   shape = L.geoJSON(feat, { style: { color: "#FFB38F", weight: 3, fillColor: "#D97757", fillOpacity: .28 } }).addTo(map);
-  map.flyToBounds(shape.getBounds(), { maxZoom: 17, duration: 1.2, paddingTopLeft: [40, 40] });
+  map.flyToBounds(shape.getBounds(), { maxZoom: NO_TILES ? 15 : 17, duration: 1.2, paddingTopLeft: [40, 40] });
 
   const t = s.tests, order = ["owner", "flood", "fire", "oil", "industrial", "parking", "slope", "fault", "wetland", "historic"];
   document.getElementById("p-find").innerHTML = `

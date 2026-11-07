@@ -30,3 +30,4 @@ data/cache/
 *.html
 !web/index.html
 video/out/
+dist/
