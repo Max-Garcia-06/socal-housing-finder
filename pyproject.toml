@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Geo + Census helpers for locating affordable housing in SoCal"
 requires-python = ">=3.11,<3.14"
 dependencies = [
+    "duckdb>=2.0.0",
     "folium>=0.17",
     "geopandas>=1.0",
     "lightgbm>=4.3",

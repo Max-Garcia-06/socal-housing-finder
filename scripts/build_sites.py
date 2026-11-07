@@ -175,6 +175,30 @@ def main():
                                  n_orgs=("NAME", "nunique"))
     p = p.merge(names, left_on="pid", right_index=True, how="left")
 
+    # Public contact for the congregation: Overture Maps places within 60 m of the parcel (organization listings).
+    # Only role-based emails (office@, info@ ...) are kept; emails that look like a person's are dropped.
+    import re
+    ov = pd.read_parquet(RAW / "overture_worship.parquet")
+    ov = ov[ov["cat"].str.contains("worship|religious_organization", na=False) & (ov["operating_status"].fillna("open") == "open")]
+    role = re.compile(r"^(office|info|contact|admin|church|parish|hello|welcome|secretary|reception|mail|connect|staff|team|ministry|ministries|temple|mosque|masjid|shul|rectory|frontdesk|front\.desk|communications|help|general|questions|inquiries|care)\b", re.I)
+    ov["email"] = ov["email"].where(ov["email"].fillna("").str.match(role), None)
+    ovg = gpd.GeoDataFrame(ov, geometry=gpd.points_from_xy(ov.lon, ov.lat), crs=4326).to_crs(M)
+    pm60 = gpd.GeoDataFrame(p[["pid"]], geometry=gpd.GeoSeries(pm.geometry.values, crs=M).buffer(60), crs=M)
+    oj = gpd.sjoin(ovg, pm60, predicate="within")
+    parcel_geom = pm.set_index("pid").geometry
+    oj["inside"] = [int(parcel_geom.loc[i].contains(g)) for g, i in zip(oj.geometry, oj["pid"])]
+    stop = {"church", "of", "the", "and", "inc", "first", "ca", "california", "christian", "center", "community", "ministries", "ministry", "fellowship", "orange", "county", "school", "&"}
+    tok = lambda n: {w for w in re.findall(r"[a-z]+", str(n).lower()) if w not in stop and len(w) > 2}
+    irs_name = p.set_index("pid")["name"]
+    oj["sim"] = [len(tok(a) & tok(irs_name.get(i))) / max(1, len(tok(irs_name.get(i)))) if isinstance(irs_name.get(i), str) else 0
+                 for a, i in zip(oj["name"], oj["pid"])]
+    oj["has"] = oj["phone"].notna().astype(int) * 2 + oj["website"].notna().astype(int) + oj["email"].notna().astype(int)
+    # Prefer a listing whose name matches the IRS org, then one inside the parcel, then the most complete contact
+    oj = oj.sort_values(["pid", "sim", "inside", "has", "confidence"], ascending=[True, False, False, False, False]).drop_duplicates("pid")
+    oj = oj.set_index("pid")[["name", "phone", "website", "email"]].rename(columns=lambda c: "ov_" + c)
+    p = p.merge(oj, left_on="pid", right_index=True, how="left")
+    p["name"] = p["name"].fillna(p["ov_name"])
+
     # Precedents: tag the parcel nearest each known church-housing project
     prec_pts = gpd.GeoDataFrame(PRECEDENTS, geometry=gpd.points_from_xy([x["lon"] for x in PRECEDENTS],
                                                                          [x["lat"] for x in PRECEDENTS]), crs=4326).to_crs(M)
@@ -264,7 +288,7 @@ def main():
             "Poverty_Pctl", "he_low", "he_total", "name", "street", "ein", "precedent", "tests", "fails", "verdict",
             "score", "rank", "funding", "cost_lo", "cost_hi", "well_active_ft", "suburban", "heavy_ft", "ind_adjoin",
             "c_yield", "c_need", "c_fin", "c_cert", "need_idx", "n_caution", "parking_cost",
-            "qct", "dda", "li_permits", "li_target", "li_pct", "rhna_period"]
+            "qct", "dda", "li_permits", "li_target", "li_pct", "rhna_period", "ov_name", "ov_phone", "ov_website", "ov_email"]
     out = p[cols].copy()
     out["ACRES"] = out["ACRES"].round(2)
     for c in ["CIscoreP", "HousBurd", "HousBurd_Pctl", "Poverty_Pctl"]:

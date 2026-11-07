@@ -192,7 +192,7 @@
         <label class="tog"><input type="checkbox" id="t_behind"> City behind on lower-income target (&lt;25% permitted) <span class="i" data-tip="HCD 6th-cycle RHNA progress (data.ca.gov): permits for very-low + low-income homes as a share of the city&#x27;s 2021–2029 target. Cities far behind face state pressure and are more likely to help fund and fast-track affordable projects.">i</span></label>
         <label class="tog"><input type="checkbox" id="t_clean"> Clean screen (no cautions) <span class="i" data-tip="No &#x27;caution&#x27; results: not partly in a FEMA flood or Very High fire zone, no idle oil well within 3,200 ft, not adjoining an industrial parcel, not steep.">i</span></label>
         <label class="tog"><input type="checkbox" id="t_he"> City already counts it in its housing element <span class="i" data-tip="Parcel&#x27;s APN appears in the city&#x27;s adopted 6th-cycle housing element site inventory (SCAG). The city already counts it toward its state housing target, a political tailwind.">i</span></label>
-        <label class="tog"><input type="checkbox" id="t_irs"> Contactable owner (IRS-registered congregation on site) <span class="i" data-tip="An IRS-registered place of worship (IRS exempt-organization list via HIFLD) is geocoded within 75 m of the parcel, so there&#x27;s a named organization to call. Not proof of ownership; confirm with a title report.">i</span></label>
+        <label class="tog"><input type="checkbox" id="t_irs"> Contactable congregation (public phone or email on file) <span class="i" data-tip="A public phone or email for a place of worship on or within 60 m of the parcel, from Overture Maps places (open data from business listings). Only role addresses like office@ or info@ are shown; emails that look personal are dropped. Not proof of ownership.">i</span></label>
         <label class="tog"><input type="checkbox" id="t_ex"> Show excluded sites <span class="i" data-tip="Also show sites that fail an SB 4 test: over half the parcel in a FEMA flood zone or Very High fire zone, an active oil/gas well within 3,200 ft, or heavy industry within 1,200 ft.">i</span></label>
         <div class="row" style="grid-template-columns:150px 1fr"><label>City</label><select id="city"><option value="">All 34 cities</option></select></div>
         <div class="note">Need index = average of CalEnviroScreen 5.0 housing-burden and poverty percentiles. Financing fit = TCAC opportunity area + transit. Preset ranges are judgment calls<span class="asm">ASSUMPTION</span>, not TCAC rules.</div>
@@ -206,6 +206,7 @@
       <div class="dname" id="dname"></div>
       <div class="meta" id="dmeta"></div>
       <span class="verdict" id="dverdict"></span>
+      <div id="dcontact" style="margin-top:6px"></div>
       <div><button class="btn dark" id="ddbtn" style="margin-top:8px">Deep dive on this site →</button></div>
     </div>
     <div class="tabs">
@@ -340,6 +341,19 @@ legend.addTo(map);
 document.getElementById("wells").onchange = e => e.target.checked ? wellLayer.addTo(map) : map.removeLayer(wellLayer);
 
 function title(n) { return n.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()).replace(/\bOf\b/g, "of").replace(/\bThe\b/g, "the").replace(/^the/, "The").replace(/\bInc\b\.?/g, "").trim(); }
+const fmtPhone = p => { const d = (p || "").replace(/\D/g, "").replace(/^1(?=\d{10}$)/, ""); return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : p; };
+const cleanUrl = u => (u || "").replace(/[?#].*$/, "");
+const hostOf = u => cleanUrl(u).replace(/^https?:\/\//i, "").replace(/^www\./i, "").replace(/\/$/, "");
+function contactHTML(s, big) {
+  if (!s.ov_phone && !s.ov_website && !s.ov_email) return `<div class="ev">No public phone, website or email found. Try the address on record${s.street ? " (" + title(s.street) + ")" : ""} or the denomination's regional office.</div>`;
+  const parts = [];
+  if (s.ov_phone) parts.push(`☎ <b>${fmtPhone(s.ov_phone)}</b>`);
+  if (s.ov_email) parts.push(`✉ <span style="user-select:all">${s.ov_email}</span>`);
+  if (s.ov_website) parts.push(`<a href="${cleanUrl(s.ov_website).startsWith("http") ? cleanUrl(s.ov_website) : "https://" + cleanUrl(s.ov_website)}" target="_blank">${hostOf(s.ov_website).slice(0, 40)}</a>`);
+  const norm = n => (n || "").toLowerCase().replace(/[^a-z]/g, "");
+  const differs = s.ein && s.ov_name && norm(title(s.name)).slice(0, 8) !== norm(s.ov_name).slice(0, 8);
+  return `<div style="font-size:${big ? 13 : 12.5}px">${parts.join(" · ")}</div><div class="ev">Listed for <b>${s.ov_name || "this congregation"}</b> in Overture Maps public place data (business listing). ${differs ? "This differs from the IRS record on site, so the campus may be shared; the property owner could be either. " : ""}Verify before reaching out.</div>`;
+}
 function siteName(s) { return s.name ? title(s.name) : s.APN24 ? `Religious facility, APN ${s.APN24}` : `Religious facility, ${s.CITY}`; }
 
 // ---------- methodology tooltips ----------
@@ -387,7 +401,7 @@ function filtered() {
     && s.units_est >= v.minU && (v.maxU >= 300 || s.units_est <= v.maxU) && (v.maxC >= 150 || mid(s) <= v.maxC)
     && (!t.t_park || s.parking_req === 0) && (!v.minN || s.need_idx >= v.minN)
     && (!t.t_9 || ["High Resource", "Highest Resource"].includes(s.oppcat)) && (!t.t_ahsc || s.hqta)
-    && (!t.t_boost || s.qct || s.dda) && (!t.t_behind || s.li_pct < 25) && (!t.t_clean || s.n_caution === 0) && (!t.t_he || s.he_total > 0) && (!t.t_irs || !!s.name)
+    && (!t.t_boost || s.qct || s.dda) && (!t.t_behind || s.li_pct < 25) && (!t.t_clean || s.n_caution === 0) && (!t.t_he || s.he_total > 0) && (!t.t_irs || !!(s.ov_phone || s.ov_email))
     && (!$("city").value || s.CITY === $("city").value) && (!ORG || !ORG.cities.length || ORG.cities.includes(s.CITY))).sort((a, b) => b.score - a.score || b.units_est - a.units_est);
 }
 function badges(s) {
@@ -408,7 +422,7 @@ function render() {
   $("list").innerHTML = rows.slice(0, 80).map((s, i) => `
     <div class="card" data-id="${s.pid}"><div class="rk">${s.score ? i + 1 : "–"}</div>
       <div><div class="nm">${siteName(s)}</div>
-      <div class="meta">${s.CITY} · <b>~${s.units_est} homes</b> · ${money(s.cost_lo)}–${money(s.cost_hi)} · ${s.parking_req ? s.parking_req + " parking" : "0 parking"}${s.verdict === "excluded" ? " · excluded: " + s.fails.join(", ") : ""}</div>
+      <div class="meta">${s.CITY} · <b>~${s.units_est} homes</b> · ${money(s.cost_lo)}–${money(s.cost_hi)} · ${s.parking_req ? s.parking_req + " parking" : "0 parking"}${s.ov_phone ? " · ☎" : ""}${s.verdict === "excluded" ? " · excluded: " + s.fails.join(", ") : ""}</div>
       <div class="badges">${badges(s)}</div>${ORG && fitReasons(s).length ? `<div class="fitwhy">✓ ${fitReasons(s).slice(0, 3).join(" · ")}</div>` : ""}</div>
       <div class="sc" data-tip="Match score 0–100: weighted average of yield, community need, financing fit and entitlement certainty using the weights in Customize."><b>${s.score || "–"}</b><span>match</span></div></div>`).join("") +
     `<div class="meta" style="padding:12px 20px">${fmt(rows.length)} sites match · ${fmt(rows.reduce((a, s) => a + s.units_est, 0))} homes. ${ORG ? `Ranked for ${ORG.name || "your organization"}'s profile.` : "Match score reflects your priorities above."}</div>`;
@@ -585,6 +599,7 @@ function brief(s) {
 - Parking: ${s.parking_req ? "up to " + s.parking_req + " spaces" : "none required (high-quality transit area)"}
 - Est. total development cost ${money(s.cost_lo)}–${money(s.cost_hi)} (RAND 2025 $/sq ft benchmark; land $0 via ground lease)
 - Tract: ${s.oppcat || "n/a"} (2026 TCAC/HCD); need index ${s.need_idx}th pct (CalEnviroScreen 5.0)
+- Public contact: ${[s.ov_name, s.ov_phone && fmtPhone(s.ov_phone), s.ov_email, hostOf(s.ov_website)].filter(Boolean).join(", ") || "none found"}
 - Site tests: ${Object.entries(t).map(([k, v]) => k + " " + v[0]).join(", ")}
 ${s.he_total ? `- Listed in the city's housing element for ${s.he_total} homes
 ` : ""}Source: Common Ground screening prototype (public data, Nov 2026). Not legal or financial advice.`;
@@ -623,7 +638,8 @@ function deepDive(pid) {
         <div class="ev" style="margin-top:6px">Ask for the SB 4 / objective-standards checklist and whether the city has SB 4 projects in review. Source: <a href="https://www.ocgis.com/arcpub/rest/services/Map_Layers/Jurisdiction_Contacts/MapServer" target="_blank">OC GIS jurisdiction contacts</a>.</div>
         ${rhnaTxt(s) ? `<div class="note">${rhnaTxt(s)}${s.li_pct < 25 ? " The city is behind on its lower-income target, a reason for it to help." : ""}</div>` : ""}
         ${s.he_total ? `<div class="note">The city already lists this parcel in its housing element for ${s.he_total} homes (${s.he_low} lower-income): a strong opening point.</div>` : ""}
-        ${s.name ? `<div class="note">Congregation on record: <b>${title(s.name)}</b>${s.ein ? ` (IRS EIN ${s.ein})` : ""}. Matched by location; confirm ownership with a title report.</div>` : ""}</div>
+        <h3 style="margin-top:14px">Contact the congregation</h3>${contactHTML(s, true)}
+        ${s.ein ? `<div class="note">IRS-registered organization on site: <b>${title(s.name)}</b> (EIN ${s.ein}). Matched by location; confirm ownership with a title report.</div>` : ""}</div>
       <div class="dcard"><h3>SB 4 eligibility</h3>${order.map(k => `<div class="test"><div class="dot d-${t[k][0]}">${icon[t[k][0]]}</div><div><span class="tl">${TESTS[k][0]}</span><div class="ev">${t[k][1]}</div></div></div>`).join("")}</div>
       <div class="dcard"><h3>Neighborhood &amp; need</h3>
         <div class="kpis" style="margin:0"><div class="kpi"><b>${s.need_idx}th</b><span>need index (housing burden + poverty)</span></div><div class="kpi"><b>${s.HousBurd ?? "–"}%</b><span>low-income households paying over half their income for housing</span></div>
@@ -655,7 +671,7 @@ function open(pid) {
   document.getElementById("listView").style.display = "none"; document.querySelector(".stats").style.display = "none"; document.getElementById("bench").style.display = "none"; document.querySelector("header .sub").style.display = "none";
   document.getElementById("detail").classList.add("on"); tab("find");
   document.getElementById("dname").textContent = siteName(s);
-  $("ddbtn").onclick = () => deepDive(pid); $("dossier").classList.remove("on");
+  $("ddbtn").onclick = () => deepDive(pid); $("dcontact").innerHTML = contactHTML(s); $("dossier").classList.remove("on");
   document.getElementById("dmeta").textContent = `${s.street ? title(s.street) + ", " : ""}${s.CITY} · APN ${s.APN24} · ${s.ACRES} acres · zoned ${s.ZN24_CITY || "unknown"}`;
   const v = document.getElementById("dverdict");
   v.className = "verdict v-" + s.verdict;
@@ -709,7 +725,7 @@ function open(pid) {
     <div id="draftBox"></div>
     <div class="note">Funding paths are rules of thumb from the site's tract and transit status, not an underwriting. Ask a housing finance professional.</div>`;
   document.getElementById("draft").onclick = () => {
-    document.getElementById("draftBox").innerHTML = `<textarea>Dear ${s.name ? title(s.name) : "congregation"} leadership,
+    document.getElementById("draftBox").innerHTML = `<textarea>${s.ov_email || s.ov_phone ? `To: ${[s.ov_email, s.ov_phone && fmtPhone(s.ov_phone)].filter(Boolean).join(" / ")}\n\n` : ""}Dear ${s.name ? title(s.name) : "congregation"} leadership,
 
 We are a nonprofit affordable housing developer working in ${s.CITY}. California's SB 4 (2023) lets congregations build 100% affordable homes on their own land by right, without a rezoning or CEQA review.
 

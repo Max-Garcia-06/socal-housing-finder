@@ -12,6 +12,8 @@ charset-normalizer==3.5.2
     # via requests
 cloudpickle==3.1.2
     # via joblib
+duckdb==2.0.0
+    # via findit
 folium==0.20.0
     # via findit
 geopandas==1.2.0

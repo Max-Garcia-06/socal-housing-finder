@@ -161,6 +161,27 @@ def city_contacts():
     print("wrote city_contacts")
 
 
+def overture_worship(release="2026-10-21.0"):
+    """Overture Maps places (CDLA-Permissive-2.0) for OC places of worship: public phone, website, email."""
+    out = RAW / "overture_worship.parquet"
+    if out.exists():
+        print("skip overture_worship")
+        return
+    import duckdb
+    con = duckdb.connect()
+    con.execute("INSTALL httpfs; LOAD httpfs; INSTALL spatial; LOAD spatial; SET s3_region='us-west-2';")
+    con.execute(f"""
+    COPY (SELECT id, names.primary AS name, basic_category AS cat, confidence, operating_status,
+                 phones[1] AS phone, websites[1] AS website, emails[1] AS email,
+                 addresses[1].freeform AS addr, addresses[1].locality AS city, ST_X(geometry) AS lon, ST_Y(geometry) AS lat
+          FROM read_parquet('s3://overturemaps-us-west-2/release/{release}/theme=places/type=place/*', hive_partitioning=1)
+          WHERE bbox.xmin BETWEEN -118.13 AND -117.41 AND bbox.ymin BETWEEN 33.38 AND 33.95
+            AND (array_to_string(taxonomy.hierarchy, '/') ILIKE '%religio%' OR array_to_string(taxonomy.hierarchy, '/') ILIKE '%worship%'
+                 OR basic_category ILIKE '%worship%' OR basic_category ILIKE '%religio%'))
+    TO '{out}' (FORMAT parquet)""")
+    print("wrote overture_worship")
+
+
 def city_bounds():
     """OC city outlines (county GIS) for the tile-free standalone map."""
     out = RAW / "city_bounds.geojson"
@@ -209,6 +230,7 @@ if __name__ == "__main__":
         socal_counties()
         city_bounds()
         city_contacts()
+        overture_worship()
     for name, url in FILES.items():
         if (not only or name in only) and not (RAW / name).exists():
             r = requests.get(url, headers=HEADERS, timeout=300)

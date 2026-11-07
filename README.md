@@ -28,7 +28,8 @@ _Made-up user, per the event rules._ The acquisitions lead at a small Orange Cou
   1. **Find:** every SB 4 test as pass / fail / caution / unknown with its source; capacity; parking; need; opportunity area; city housing-target progress; basis-boost eligibility.
   2. **Clear:** ministerial path vs. typical rezoning, review clock, clearance checklist, draft intro letter to the congregation (draft only, never sent).
   3. **Fund:** line-item total development cost, an illustrative three-layer capital stack for a 9% and a 4% deal, and program fit for eight funding sources with reasons for this site.
-- **Deep dive** on any site: city Community Development contact, congregation on record (IRS-registered org), full eligibility list, need, cost, financing, nearest church-housing precedents, other candidate sites within a mile, next steps, and **"Deep dive with Claude"**, which opens Claude with the site's facts and a research plan.
+- **Congregation contact** on every site: public phone, website and office email from Overture Maps business listings (941 of 1,168 parcels have a phone), shown in the site header, the deep dive and the draft letter.
+- **Deep dive** on any site: city Community Development contact, congregation contact and IRS record, full eligibility list, need, cost, financing, nearest church-housing precedents, other candidate sites within a mile, next steps, and **"Deep dive with Claude"**, which opens Claude with the site's facts and a research plan.
 - **Precedents on the map:** Legacy Square (Santa Ana, 93 homes), Wesley Village (Garden Grove, 47), 340 St. Ann's Drive (Laguna Beach, 29, SB 4), Church of the Blessed Sacrament (Placentia, 65), plus two mostly market-rate church-land projects for contrast.
 - Neighboring counties are shown as "coming soon": the pipeline is county-agnostic (SCAG covers six counties).
 
@@ -115,6 +116,7 @@ No API keys are used. `.env.example` lists only the optional Census key for the 
 | City targets | HCD 6th-cycle RHNA progress report, data.ca.gov | 2026-11-07 |
 | Income limits | HCD 2026 State Income Limits, Orange County (AMI $138,600 for 4) | 2026-11-07 |
 | City contacts | OC GIS Jurisdiction Contacts (public Community Development offices) | 2026-11-07 |
+| Congregation contacts | Overture Maps places, release 2026-10-21.0 (CDLA-Permissive-2.0): public phone, website and role emails (office@, info@ …) for places of worship within 60 m of the parcel; personal-looking emails dropped. 941 of 1,168 parcels have a phone | 2026-11-07 |
 | Church names | HIFLD All Places of Worship (IRS Exempt Organizations BMF) | 2026-11-07 |
 | Precedents | National CORE, Jamboree, Laguna Beach Indy/City, HCD APR Table A (`data/reference/apr_oc_church_projects.csv`) | 2026-11-07 |
 | Benchmark | Terner Center SB4-Analysis county tables | 2026-11-07 |
@@ -154,7 +156,7 @@ For a nonprofit to use it next month: add Assessor ownership (paid roll or title
 
 ## Data and privacy
 
-This project uses only public or provided data. It contains no personal information about real tenants, buyers or residents. Congregations appear as organizations from the IRS exempt-organizations list; city contacts are public office numbers. It does not file applications or contact any city or person.
+This project uses only public or provided data. It contains no personal information about real tenants, buyers or residents. Congregations appear as organizations from the IRS exempt-organizations list. Contact details are organizations' public business listings (Overture Maps); only role-based emails (office@, info@) are kept and emails that look like a person's are dropped. City contacts are public office numbers. It does not file applications or contact any city or person.
 
 ## Code
 
