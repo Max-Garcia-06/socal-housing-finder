@@ -51,6 +51,22 @@
   .i{display:inline-grid;place-items:center;width:14px;height:14px;border-radius:50%;background:#E6DFD2;color:#6B5A48;font:700 9.5px Georgia,serif;font-style:italic;cursor:help;vertical-align:1px;margin-left:3px;text-transform:none;letter-spacing:0}
   .i:hover{background:var(--clay);color:#fff}
   #tip{position:fixed;z-index:10000;max-width:300px;background:#1F1E1D;color:#FAF9F5;font:12px/1.45 Inter;padding:9px 11px;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.2);pointer-events:none;display:none}
+  .stack{display:flex;height:22px;border-radius:6px;overflow:hidden;margin:4px 0 2px;font:600 10.5px Inter;color:#fff}
+  .stack div{display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden}
+  .fit{display:grid;grid-template-columns:22px 1fr;gap:6px;padding:6px 0;border-bottom:1px dashed var(--line);font-size:12px}
+  .fit b{font-size:12.5px}
+  #dossier{position:fixed;left:420px;right:0;top:0;bottom:0;z-index:2000;background:rgba(244,241,234,.97);overflow:auto;display:none}
+  #dossier.on{display:block}
+  .dz{max-width:1040px;margin:0 auto;padding:26px 34px 60px}
+  .dz h2{font:600 28px/1.15 "Source Serif 4",Georgia,serif;margin:4px 0 6px}
+  .dz .k{font:600 11px Inter;letter-spacing:.12em;text-transform:uppercase;color:var(--clay-d)}
+  .dgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+  .dcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+  .dcard h3{margin-top:0}
+  .dcard.wide{grid-column:1 / -1}
+  .dbtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+  .btn.dark{background:var(--ink)}
   .ctab{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
   .ctab td{padding:5px 0;border-bottom:1px dashed var(--line);vertical-align:top}
   .ctab td:last-child{text-align:right;white-space:nowrap;font-weight:600}
@@ -170,6 +186,7 @@
       <div class="dname" id="dname"></div>
       <div class="meta" id="dmeta"></div>
       <span class="verdict" id="dverdict"></span>
+      <div><button class="btn dark" id="ddbtn" style="margin-top:8px">Deep dive on this site →</button></div>
     </div>
     <div class="tabs">
       <div class="tab on" data-t="find">1 · Find</div>
@@ -193,6 +210,7 @@
 </div>
 
 <div id="tip"></div>
+<div id="dossier"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="data/sites.js"></script>
 <script>
@@ -382,7 +400,7 @@ setCtl({});
 render();
 
 // ---------- detail ----------
-document.getElementById("back").onclick = () => { document.getElementById("detail").classList.remove("on"); document.getElementById("listView").style.display = "flex"; document.querySelector(".stats").style.display = "grid"; document.getElementById("bench").style.display = "block"; document.querySelector("header .sub").style.display = "block"; if (shape) map.removeLayer(shape); history.replaceState(null, "", "#"); };
+document.getElementById("back").onclick = () => { $("dossier").classList.remove("on"); document.getElementById("detail").classList.remove("on"); document.getElementById("listView").style.display = "flex"; document.querySelector(".stats").style.display = "grid"; document.getElementById("bench").style.display = "block"; document.querySelector("header .sub").style.display = "block"; if (shape) map.removeLayer(shape); history.replaceState(null, "", "#"); };
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => tab(t.dataset.t));
 function tab(k) { document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.dataset.t === k)); document.querySelectorAll(".pane").forEach(p => p.classList.toggle("on", p.id === "p-" + k)); }
 const icon = { pass: "✓", fail: "✕", caution: "!", unknown: "?", info: "i" };
@@ -404,11 +422,115 @@ function costTable(s) {
   Check: Wesley Village (47 homes, 2017) cost ~$18.9M, about $402k per home.</div>`;
 }
 
+// ---------- financing methodology ----------
+const EQ = { lihtc9: 0.70, lihtc4: 0.35 };  // share of TDC from tax-credit equity (typical ranges: 9% ~70%+, 4% ~30-40%)
+const EQ_SRC = "https://www.ashlandsource.com/wp-content/uploads/2025/07/LIHTC-Overview.pdf";
+function programFit(s) {
+  const hi = ["High Resource", "Highest Resource"].includes(s.oppcat), mid = (s.cost_lo + s.cost_hi) / 2;
+  return [
+    [hi ? "✓" : "△", "9% LIHTC (TCAC, competitive)", hi ? `Tract is ${s.oppcat} on the 2026 TCAC/HCD map, which TCAC uses in scoring large-family 9% deals.` : `Tract is ${s.oppcat || "unrated"}; still eligible, but it misses opportunity-area points, so it's less competitive.`, "https://www.treasurer.ca.gov/ctcac/"],
+    [s.units_est >= 50 ? "✓" : "△", "4% LIHTC + tax-exempt bonds (CDLAC)", s.units_est >= 50 ? `~${s.units_est} homes: big enough to spread bond-deal fixed costs (ASSUMPTION: 50+ homes).` : `~${s.units_est} homes: small for a bond deal (ASSUMPTION: 50+ homes is typical); 9% or soft funds fit better.`, "https://www.treasurer.ca.gov/cdlac/"],
+    [s.hqta ? "✓" : "✗", "AHSC (Strategic Growth Council)", s.hqta ? "In a high-quality transit area. Legacy Square (church land, Santa Ana) won $25.4M." : "Not in a high-quality transit area; AHSC is for transit-oriented housing.", "https://sgc.ca.gov/grant-programs/ahsc/"],
+    ["✓", "HCD Multifamily Housing Program (MHP)", "State gap loans for affordable rental new construction; a 100% affordable SB 4 project fits.", "https://www.hcd.ca.gov/grants-and-funding/programs-active/multifamily-housing-program"],
+    ["△", "Orange County Housing Finance Trust", `County + member-city gap loans. Confirm ${s.CITY} is a Trust member and check the current NOFA.`, "https://www.ochft.org/"],
+    ["△", "City funds (HOME, housing trust, fee waivers)", `Ask ${s.CITY}${s.he_total ? ", which already lists this parcel in its housing element," : ""}. Laguna Beach committed $6.71M (~$231k/home) to its SB 4 church project.`, "https://www.lagunabeachindy.com/news/city-commits-6-71m-in-funding-for-affordable-housing-project/article_f60c6735-3a80-42e6-a47d-164c19c713c1.html"],
+    ["✓", "FHLB San Francisco AHP", "Competitive gap grants through a member bank; Wesley Village received $460k.", "https://www.fhlbsf.com/"],
+    ["△", "OC Supportive Housing NOFA", "Only if some homes are permanent supportive housing (Legacy Square set aside 33).", "https://housing.oc.gov/housing-development"],
+  ];
+}
+function financing(s) {
+  const mid = (s.cost_lo + s.cost_hi) / 2;
+  const bar = (eq, lab) => `<div class="meta" style="margin-top:8px"><b style="color:var(--ink)">${lab}</b>: equity ≈ ${Math.round(eq * 100)}% of cost</div>
+    <div class="stack"><div style="width:${eq * 100}%;background:#5A7FA8">Tax-credit equity ${money(mid * eq)}</div><div style="width:${(1 - eq) * 100}%;background:#D97757">Gap ${money(mid * (1 - eq))}</div></div>`;
+  return `<h3>How we'd finance it (illustrative)</h3>
+  <div class="meta">Uses the midpoint cost (${money(mid)}). Investors buy the tax credits up front, which covers part of the cost. The rest, the "gap", is filled by a permanent loan sized to the restricted rents plus public soft loans and grants below.</div>
+  ${bar(EQ.lihtc9, "9% tax-credit deal")}${bar(EQ.lihtc4, "4% tax-credit + bond deal")}
+  <div class="ev" style="font-size:11px;margin-top:4px">Equity shares are typical program ranges (9% ≈ 70%+, 4% ≈ 30–40% of cost; <a href="${EQ_SRC}" target="_blank">source</a>)<span class="asm">ASSUMPTION</span>. Real equity depends on credit pricing, eligible basis and California state credits, which are not modeled. Check: Wesley Village raised $7.45M of tax-credit equity on ~$18.9M (~39%), a 4% deal.</div>
+  <h3>Program fit for this site</h3>
+  ${programFit(s).map(([m, n, why, u]) => `<div class="fit"><div class="dot ${m === "✓" ? "d-pass" : m === "✗" ? "d-fail" : "d-caution"}">${m === "△" ? "~" : m}</div><div><b>${n}</b> · <a href="${u}" target="_blank">program</a><div class="ev">${why}</div></div></div>`).join("")}
+  <div class="note">✓ fits on criteria we can check · ~ possible, needs confirmation · ✕ doesn't fit. Rules of thumb from public program criteria, not an award prediction.</div>`;
+}
+
+// ---------- deep dive ----------
+const km = (a, b) => { const R = 6371, t = Math.PI / 180, dLa = (b.lat - a.lat) * t, dLo = (b.lon - a.lon) * t;
+  const h = Math.sin(dLa / 2) ** 2 + Math.cos(a.lat * t) * Math.cos(b.lat * t) * Math.sin(dLo / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(h)); };
+function brief(s) {
+  const t = s.tests, mid = (s.cost_lo + s.cost_hi) / 2;
+  return `SB 4 site screen: ${siteName(s)}, ${s.street ? title(s.street) + ", " : ""}${s.CITY}, CA (APN ${s.APN24})
+- ${s.ACRES} acres, city zone ${s.ZN24_CITY || "unknown"}; SB 4 density ${s.density} homes/acre
+- Estimated ~${s.units_est} homes on half the lot (up to ${s.units_max} on the whole parcel)
+- Parking: ${s.parking_req ? "up to " + s.parking_req + " spaces" : "none required (high-quality transit area)"}
+- Est. total development cost ${money(s.cost_lo)}–${money(s.cost_hi)} (RAND 2025 $/sq ft benchmark; land $0 via ground lease)
+- Tract: ${s.oppcat || "n/a"} (2026 TCAC/HCD); need index ${s.need_idx}th pct (CalEnviroScreen 5.0)
+- Site tests: ${Object.entries(t).map(([k, v]) => k + " " + v[0]).join(", ")}
+${s.he_total ? `- Listed in the city's housing element for ${s.he_total} homes
+` : ""}Source: Common Ground screening prototype (public data, Nov 2026). Not legal or financial advice.`;
+}
+function claudePrompt(s) {
+  return `I'm a nonprofit affordable housing developer in Orange County, CA, evaluating a possible SB 4 (Gov. Code § 65913.16, "Yes in God's Backyard") site. Here is a public-data screen:
+
+${brief(s)}
+
+Please do a pre-development deep dive, citing sources:
+1. Verify the SB 4 items our screen could not check (earthquake fault zone, wetlands/habitat, historic structures, existing tenants, Title V industrial sites) and whether ownership as of Jan 1, 2024 can be confirmed.
+2. Find ${s.CITY}'s SB 4 procedures and objective design standards (height, setbacks, parking) for this zone.
+3. Identify the congregation's denomination and how its governance approves ground leases (public information only).
+4. Sketch an illustrative sources-and-uses for ~${s.units_est} homes using current TCAC/CDLAC, HCD, AHSC, OC Housing Finance Trust and city programs, with deadlines.
+5. List the top risks and the next three steps to approach the congregation.`;
+}
+function deepDive(pid) {
+  const s = byId[pid], C = CONTACTS[s.CITY] || {}, d = $("dossier");
+  const near = S.filter(x => x.pid !== s.pid && x.score > 0 && km(s, x) <= 1.6).sort((a, b) => km(s, a) - km(s, b)).slice(0, 5);
+  const prec = PRECEDENTS.map(p => ({ ...p, d: km(s, p) })).sort((a, b) => a.d - b.d).slice(0, 3);
+  const t = s.tests, order = ["owner", "flood", "fire", "oil", "industrial", "parking", "slope", "fault", "wetland", "historic"];
+  const url = "https://claude.ai/new?q=" + encodeURIComponent(claudePrompt(s));
+  d.innerHTML = `<div class="dz">
+    <div style="display:flex;justify-content:space-between;align-items:start"><div><div class="k">Site deep dive · ${s.CITY}</div><h2>${siteName(s)}</h2>
+      <div class="meta">${s.street ? title(s.street) + ", " : ""}${s.CITY} · APN ${s.APN24} · ${s.ACRES} acres · zoned ${s.ZN24_CITY || "unknown"}</div>
+      <span class="verdict v-${s.verdict}">${s.verdict === "likely" ? "Likely SB 4 eligible" : "Excluded: " + s.fails.join(", ")} · match ${s.score || "n/a"}</span></div>
+      <button class="btn ghost" id="ddclose">✕ Close</button></div>
+    <div class="dbtns"><a class="btn" href="${url}" target="_blank" style="text-decoration:none">Deep dive with Claude ↗</a><button class="btn ghost" id="ddcopy">Copy site brief</button></div>
+    <div class="ev" style="margin-top:6px">Opens Claude with this site's facts and a research plan: unknown SB 4 tests, city standards, congregation governance, sources &amp; uses, risks.</div>
+    <div class="dgrid">
+      <div class="dcard"><h3>Capacity</h3>
+        <div class="kpis" style="margin:0"><div class="kpi"><b>~${s.units_est}</b><span>homes on half the lot<span class="asm">ASSUMPTION</span></span></div><div class="kpi"><b>${s.units_max}</b><span>homes on the whole parcel at ${s.density}/acre</span></div>
+        <div class="kpi"><b>${s.parking_req ? "≤ " + s.parking_req : "0"}</b><span>parking spaces required</span></div><div class="kpi"><b>+1 story</b><span>above local height limit (SB 4)</span></div></div></div>
+      <div class="dcard"><h3>Who to call at the city</h3>
+        <div class="test"><div class="dot d-info">☎</div><div><span class="tl">${s.CITY} Community Development</span><div class="ev">${C.Community_Dev__ || C.City_Hall__ || "number not listed"}${C.Community_Dev ? ` · <a href="${C.Community_Dev}" target="_blank">website</a>` : ""}</div></div></div>
+        <div class="ev" style="margin-top:6px">Ask for the SB 4 / objective-standards checklist and whether the city has SB 4 projects in review. Source: <a href="https://www.ocgis.com/arcpub/rest/services/Map_Layers/Jurisdiction_Contacts/MapServer" target="_blank">OC GIS jurisdiction contacts</a>.</div>
+        ${s.he_total ? `<div class="note">The city already lists this parcel in its housing element for ${s.he_total} homes (${s.he_low} lower-income): a strong opening point.</div>` : ""}
+        ${s.name ? `<div class="note">Congregation on record: <b>${title(s.name)}</b>${s.ein ? ` (IRS EIN ${s.ein})` : ""}. Matched by location; confirm ownership with a title report.</div>` : ""}</div>
+      <div class="dcard"><h3>SB 4 eligibility</h3>${order.map(k => `<div class="test"><div class="dot d-${t[k][0]}">${icon[t[k][0]]}</div><div><span class="tl">${TESTS[k][0]}</span><div class="ev">${t[k][1]}</div></div></div>`).join("")}</div>
+      <div class="dcard"><h3>Neighborhood &amp; need</h3>
+        <div class="kpis" style="margin:0"><div class="kpi"><b>${s.need_idx}th</b><span>need index (housing burden + poverty)</span></div><div class="kpi"><b>${s.HousBurd ?? "–"}%</b><span>low-income households paying over half their income for housing</span></div>
+        <div class="kpi"><b>${s.oppcat || "–"}</b><span>2026 TCAC/HCD Opportunity Map</span></div><div class="kpi"><b>${s.CIscoreP ?? "–"}th</b><span>CalEnviroScreen pollution + vulnerability percentile</span></div></div></div>
+      <div class="dcard">${costTable(s)}</div>
+      <div class="dcard">${financing(s)}</div>
+      <div class="dcard"><h3>Nearest church-housing precedents</h3>${prec.map(p => `<div class="test"><div class="dot d-info">★</div><div><span class="tl">${p.name}, ${p.city}</span> · ${p.d.toFixed(1)} km<div class="ev">${p.units} homes · ${p.year} · ${p.partner}. ${p.note} <a href="${p.src}" target="_blank">source</a></div></div></div>`).join("")}</div>
+      <div class="dcard"><h3>Other candidate church sites within 1 mile</h3>${near.length ? near.map(x => `<div class="test"><div class="dot d-pass">✓</div><div><span class="tl"><a href="#" data-go="${x.pid}">${siteName(x)}</a></span> · ${km(s, x).toFixed(1)} km<div class="ev">~${x.units_est} homes · match ${x.score}</div></div></div>`).join("") : '<div class="ev">None ranked nearby.</div>'}
+        <div class="ev" style="margin-top:6px">Nearby sites can share a developer, a funding round or a scattered-site deal.</div></div>
+      <div class="dcard wide"><h3>Next steps</h3>${[
+        ["Pull a title report", "Confirm the religious institution owned the land on 1 Jan 2024 and check easements."],
+        ["Meet the congregation", "Use the draft letter on the Fund tab; bring Legacy Square and Wesley Village as ground-lease examples."],
+        [`Call ${s.CITY} planning`, "Get objective standards, the SB 4 submittal checklist and the review timeline (60 days for ≤150 homes)."],
+        ["Order a Phase I environmental site assessment", "Required by SB 4; it also resolves the unknown hazard tests."],
+        ["Test fit and pro forma", "Architect massing on the parking area; run sources and uses against the next 9%/4% round."],
+      ].map(([a, b], i) => `<div class="test"><div class="dot d-info">${i + 1}</div><div><span class="tl">${a}</span><div class="ev">${b}</div></div></div>`).join("")}</div>
+    </div>
+    <div class="note" style="margin-top:16px">Prototype screening from public data, checked ${window.BUILT}. Not legal, financial or lending advice.</div></div>`;
+  d.classList.add("on"); d.scrollTop = 0;
+  $("ddclose").onclick = () => d.classList.remove("on");
+  $("ddcopy").onclick = async () => { try { await navigator.clipboard.writeText(brief(s)); $("ddcopy").textContent = "Copied ✓"; } catch { $("ddcopy").textContent = "Copy blocked: select the text instead"; } };
+  d.querySelectorAll("[data-go]").forEach(a => a.onclick = e => { e.preventDefault(); open(+a.dataset.go); deepDive(+a.dataset.go); });
+}
+window.deepDive = deepDive;
+
 function open(pid) {
   const s = byId[pid]; history.replaceState(null, "", "#site=" + pid);
   document.getElementById("listView").style.display = "none"; document.querySelector(".stats").style.display = "none"; document.getElementById("bench").style.display = "none"; document.querySelector("header .sub").style.display = "none";
   document.getElementById("detail").classList.add("on"); tab("find");
   document.getElementById("dname").textContent = siteName(s);
+  $("ddbtn").onclick = () => deepDive(pid); $("dossier").classList.remove("on");
   document.getElementById("dmeta").textContent = `${s.street ? title(s.street) + ", " : ""}${s.CITY} · APN ${s.APN24} · ${s.ACRES} acres · zoned ${s.ZN24_CITY || "unknown"}`;
   const v = document.getElementById("dverdict");
   v.className = "verdict v-" + s.verdict;
@@ -452,8 +574,7 @@ function open(pid) {
 
   document.getElementById("p-fund").innerHTML = `
     ${costTable(s)}
-    <h3>Likely funding stack</h3>
-    ${s.funding.map(k => `<a class="fund" href="${FUND[k][2]}" target="_blank"><b>${FUND[k][0]}</b><span>${FUND[k][1]}</span></a>`).join("")}
+    ${financing(s)}
     <h3>Developers who have built on church land in OC</h3>
     ${PARTNERS.map(p => `<a class="fund" href="${p[2]}" target="_blank"><b>${p[0]}</b><span>${p[1]}</span></a>`).join("")}
     <button class="btn" id="draft">Draft an intro letter to this congregation</button>

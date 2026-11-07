@@ -135,6 +135,20 @@ def socal_counties():
     print("wrote socal_counties")
 
 
+def city_contacts():
+    """County GIS jurisdiction contacts: each city's Community Development phone and website (public offices)."""
+    out = RAW / "city_contacts.json"
+    if out.exists():
+        print("skip city_contacts")
+        return
+    r = requests.post("https://www.ocgis.com/arcpub/rest/services/Map_Layers/Jurisdiction_Contacts/MapServer/0/query",
+                      data={"where": "1=1", "outFields": "Jurisdiction,City_Website,City_Hall__,Community_Dev__,Community_Dev",
+                            "returnGeometry": "false", "f": "json"}, headers=HEADERS, timeout=120)
+    r.raise_for_status()
+    out.write_text(json.dumps([f["attributes"] for f in r.json()["features"]]))
+    print("wrote city_contacts")
+
+
 def city_bounds():
     """OC city outlines (county GIS) for the tile-free standalone map."""
     out = RAW / "city_bounds.geojson"
@@ -182,6 +196,7 @@ if __name__ == "__main__":
     if not only or "context" in only:
         socal_counties()
         city_bounds()
+        city_contacts()
     for name, url in DOWNLOADS.items():
         if not only or name in only:
             try:
