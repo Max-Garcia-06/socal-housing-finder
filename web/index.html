@@ -40,7 +40,7 @@
   .deal.open .dealbody{display:block}
   .presets{display:flex;flex-wrap:wrap;gap:6px;padding:0 20px 10px}
   .grp{font:600 11px Inter;letter-spacing:.06em;text-transform:uppercase;color:var(--clay-d);margin:12px 0 6px}
-  .row{display:grid;grid-template-columns:118px 1fr 64px;gap:8px;align-items:center;font-size:12px;margin:4px 0}
+  .row{display:grid;grid-template-columns:150px 1fr 54px;gap:8px;align-items:center;font-size:12px;margin:4px 0}
   .row output{text-align:right;color:var(--muted);font-size:11.5px}
   input[type=range]{width:100%;accent-color:var(--clay)}
   .tog{display:flex;align-items:center;gap:7px;font-size:12px;margin:4px 0}
@@ -48,6 +48,9 @@
   .badges{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
   .bdg{font-size:10px;font-weight:600;padding:1px 6px;border-radius:5px;background:#EFE9DE;color:#6B5A48}
   .bdg.g{background:#E1EDDF;color:#2F5D2E}.bdg.b{background:#E0E8F1;color:#33557A}
+  .i{display:inline-grid;place-items:center;width:14px;height:14px;border-radius:50%;background:#E6DFD2;color:#6B5A48;font:700 9.5px Georgia,serif;font-style:italic;cursor:help;vertical-align:1px;margin-left:3px;text-transform:none;letter-spacing:0}
+  .i:hover{background:var(--clay);color:#fff}
+  #tip{position:fixed;z-index:10000;max-width:300px;background:#1F1E1D;color:#FAF9F5;font:12px/1.45 Inter;padding:9px 11px;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.2);pointer-events:none;display:none}
   .ctab{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
   .ctab td{padding:5px 0;border-bottom:1px dashed var(--line);vertical-align:top}
   .ctab td:last-child{text-align:right;white-space:nowrap;font-weight:600}
@@ -114,46 +117,46 @@
     </div>
     <div class="sub">Where can church land in Orange County become affordable homes <b>by right</b> under SB 4? For nonprofit developers: ranked sites, site tests, a path through approvals and a funding stack.</div>
     <div class="stats">
-      <div class="stat"><b id="s1">–</b><span>religious-use parcels screened</span></div>
-      <div class="stat"><b id="s2">–</b><span>pass every checked SB 4 test</span></div>
-      <div class="stat"><b id="s3">–</b><span>homes possible (est.)<span class="asm">ASSUMPTION</span></span></div>
+      <div class="stat"><b id="s1">–</b><span>religious-use parcels screened <span class="i" data-tip="Every parcel SCAG's 2024 land-use data classes as Religious Facilities (code 1245) in Orange County. Land use, not ownership.">i</span></span></div>
+      <div class="stat"><b id="s2">–</b><span>pass every checked SB 4 test <span class="i" data-tip="Not excluded by flood, fire, oil/gas wells or heavy industry. Fault zones, wetlands, historic structures, tenants and ownership as of 1 Jan 2024 are not checked and need confirmation.">i</span></span></div>
+      <div class="stat"><b id="s3">–</b><span>homes possible (est.)<span class="asm">ASSUMPTION</span> <span class="i" data-tip="Sum over likely-eligible sites of 0.5+ acres: half of each lot at SB 4 density. A screening estimate, not a capacity study. Density bonus law could add more.">i</span></span></div>
     </div>
     <div class="sub" id="bench" style="margin-top:8px"></div>
   </header>
   <div id="listView" style="display:flex;flex-direction:column;min-height:0;flex:1">
     <div class="filters" style="border-bottom:0;padding-bottom:6px">
       <span style="font-size:11.5px;color:var(--muted);margin-right:2px">Deal type:</span>
-      <span class="chip" data-p="lihtc9">9% tax credit deal</span>
-      <span class="chip" data-p="tod">Transit-oriented (AHSC)</span>
-      <span class="chip" data-p="need">Deepest need</span>
-      <span class="chip" data-p="small">Small infill</span>
+      <span class="chip" data-p="lihtc9" data-tip="Ranks financing fit and certainty highest. Filters: 40–90 homes, High/Highest Resource tract, clean screen. Ranges are our judgment (ASSUMPTION), not TCAC rules.">9% tax credit deal</span>
+      <span class="chip" data-p="tod" data-tip="Ranks financing fit and yield. Filters: 20+ homes, in a high-quality transit area (0 parking, AHSC-eligible).">Transit-oriented (AHSC)</span>
+      <span class="chip" data-p="need" data-tip="Ranks community need highest. Filters: 20+ homes, need index at or above the 75th percentile.">Deepest need</span>
+      <span class="chip" data-p="small" data-tip="Ranks entitlement certainty highest. Filters: 10–35 homes, clean screen. Fits smaller nonprofits and local/AHP funding.">Small infill</span>
       <span class="chip" data-p="reset">Reset</span>
     </div>
     <div class="deal" id="deal">
       <div class="dealhead" id="dealhead">Customize: priorities &amp; filters <span id="dealsum"></span></div>
       <div class="dealbody">
-        <div class="grp">What matters most (ranking)</div>
-        <div class="row"><label>Yield (homes)</label><input type="range" id="w_yield" min="0" max="10" value="4"><output id="o_w_yield"></output></div>
-        <div class="row"><label>Community need</label><input type="range" id="w_need" min="0" max="10" value="3"><output id="o_w_need"></output></div>
-        <div class="row"><label>Financing fit</label><input type="range" id="w_fin" min="0" max="10" value="2"><output id="o_w_fin"></output></div>
-        <div class="row"><label>Entitlement certainty</label><input type="range" id="w_cert" min="0" max="10" value="2"><output id="o_w_cert"></output></div>
+        <div class="grp">What matters most (ranking) <span class="i" data-tip="Match score (0–100) = weighted average of the four parts below, using your slider weights. Only likely-eligible sites of 0.5+ acres are ranked (ASSUMPTION: smaller lots rarely pencil).">i</span></div>
+        <div class="row"><label>Yield (homes) <span class="i" data-tip="Percentile rank of estimated homes among ranked sites (capped at 150 so big campuses don&#x27;t dominate). Homes = lot acres × 50% buildable (ASSUMPTION: sanctuary and some parking stay) × SB 4 density: 30/acre in residential zones (20 in HCD &#x27;suburban&#x27; cities: La Palma, Laguna Beach, Laguna Woods, Los Alamitos, Villa Park), 40/acre in non-residential zones.">i</span></label><input type="range" id="w_yield" min="0" max="10" value="4"><output id="o_w_yield"></output></div>
+        <div class="row"><label>Community need <span class="i" data-tip="Need index = average of two CalEnviroScreen 5.0 tract percentiles (statewide): housing burden (low-income households paying over 50% of income for housing) and poverty. 100 = highest need in California.">i</span></label><input type="range" id="w_need" min="0" max="10" value="3"><output id="o_w_need"></output></div>
+        <div class="row"><label>Financing fit <span class="i" data-tip="Half credit if the tract is High or Highest Resource on the 2026 TCAC/HCD Opportunity Map (used in 9% tax credit scoring); half credit if the site is in a Caltrans High Quality Transit Area (AHSC transit funding, and no parking can be required). Not a full TCAC score.">i</span></label><input type="range" id="w_fin" min="0" max="10" value="2"><output id="o_w_fin"></output></div>
+        <div class="row"><label>Entitlement certainty <span class="i" data-tip="Starts at 100%. Minus 15 points per caution (partly in a flood or fire zone, idle oil well within 3,200 ft, or adjoining an industrial parcel) and minus 50 for steep slope (SCAG slope class above 15). Unknown tests (fault zones, wetlands, historic, tenants) are not scored.">i</span></label><input type="range" id="w_cert" min="0" max="10" value="2"><output id="o_w_cert"></output></div>
         <div class="grp">Deal size</div>
-        <div class="row"><label>Min homes</label><input type="range" id="minU" min="0" max="150" step="5" value="0"><output id="o_minU"></output></div>
-        <div class="row"><label>Max homes</label><input type="range" id="maxU" min="10" max="300" step="10" value="300"><output id="o_maxU"></output></div>
+        <div class="row"><label>Min homes <span class="i" data-tip="Estimated homes on half the lot at SB 4 density (see Yield). Use the range to match your pipeline: small infill vs. larger tax-credit deals.">i</span></label><input type="range" id="minU" min="0" max="150" step="5" value="0"><output id="o_minU"></output></div>
+        <div class="row"><label>Max homes <span class="i" data-tip="Estimated homes on half the lot at SB 4 density (see Yield).">i</span></label><input type="range" id="maxU" min="10" max="300" step="10" value="300"><output id="o_maxU"></output></div>
         <div class="grp">Cost</div>
-        <div class="row"><label>Max total cost</label><input type="range" id="maxC" min="5" max="150" step="5" value="150"><output id="o_maxC"></output></div>
-        <label class="tog"><input type="checkbox" id="t_park"> No parking required (near frequent transit)</label>
+        <div class="row"><label>Max total cost <span class="i" data-tip="Compares against the midpoint of the site&#x27;s total development cost range. Range = homes × 850 rentable sq ft × $481–$625/sq ft (RAND 2025 all-in tax-credit costs, San Diego and LA metros), plus up to $94k/home prevailing-wage premium (Terner 2024). Land $0 via ground lease. Full breakdown on each site&#x27;s Fund tab.">i</span></label><input type="range" id="maxC" min="5" max="150" step="5" value="150"><output id="o_maxC"></output></div>
+        <label class="tog"><input type="checkbox" id="t_park"> No parking required (near frequent transit) <span class="i" data-tip="Site&#x27;s center is inside a Caltrans High Quality Transit Area, our proxy for SB 4&#x27;s &#x27;within ½ mile walking distance of a high-quality transit corridor or major transit stop,&#x27; where cities cannot require parking. Elsewhere up to 1 space per home.">i</span></label>
         <div class="grp">Community need</div>
-        <div class="row"><label>Min need index</label><input type="range" id="minN" min="0" max="95" step="5" value="0"><output id="o_minN"></output></div>
+        <div class="row"><label>Min need index <span class="i" data-tip="Same need index as the ranking slider: average of CalEnviroScreen 5.0 housing-burden and poverty percentiles for the site&#x27;s census tract.">i</span></label><input type="range" id="minN" min="0" max="95" step="5" value="0"><output id="o_minN"></output></div>
         <div class="grp">Financing fit</div>
-        <label class="tog"><input type="checkbox" id="t_9"> 9% LIHTC-competitive area (High/Highest Resource)</label>
-        <label class="tog"><input type="checkbox" id="t_ahsc"> AHSC transit-eligible</label>
+        <label class="tog"><input type="checkbox" id="t_9"> 9% LIHTC-competitive area (High/Highest Resource) <span class="i" data-tip="Tract is High or Highest Resource on the 2026 TCAC/HCD Opportunity Map. TCAC uses these categories in scoring 9% tax credit applications for large-family housing. This is a signal, not a full TCAC score.">i</span></label>
+        <label class="tog"><input type="checkbox" id="t_ahsc"> AHSC transit-eligible <span class="i" data-tip="In a Caltrans High Quality Transit Area. AHSC (Strategic Growth Council) funds transit-oriented affordable housing; Legacy Square won $25.4M. AHSC has more requirements than this proxy checks.">i</span></label>
         <div class="grp">Site readiness</div>
-        <label class="tog"><input type="checkbox" id="t_clean"> Clean screen (no cautions)</label>
-        <label class="tog"><input type="checkbox" id="t_he"> City already counts it in its housing element</label>
-        <label class="tog"><input type="checkbox" id="t_irs"> Contactable owner (IRS-registered congregation on site)</label>
-        <label class="tog"><input type="checkbox" id="t_ex"> Show excluded sites</label>
-        <div class="row" style="grid-template-columns:118px 1fr"><label>City</label><select id="city"><option value="">All 34 cities</option></select></div>
+        <label class="tog"><input type="checkbox" id="t_clean"> Clean screen (no cautions) <span class="i" data-tip="No &#x27;caution&#x27; results: not partly in a FEMA flood or Very High fire zone, no idle oil well within 3,200 ft, not adjoining an industrial parcel, not steep.">i</span></label>
+        <label class="tog"><input type="checkbox" id="t_he"> City already counts it in its housing element <span class="i" data-tip="Parcel&#x27;s APN appears in the city&#x27;s adopted 6th-cycle housing element site inventory (SCAG). The city already counts it toward its state housing target, a political tailwind.">i</span></label>
+        <label class="tog"><input type="checkbox" id="t_irs"> Contactable owner (IRS-registered congregation on site) <span class="i" data-tip="An IRS-registered place of worship (IRS exempt-organization list via HIFLD) is geocoded within 75 m of the parcel, so there&#x27;s a named organization to call. Not proof of ownership; confirm with a title report.">i</span></label>
+        <label class="tog"><input type="checkbox" id="t_ex"> Show excluded sites <span class="i" data-tip="Also show sites that fail an SB 4 test: over half the parcel in a FEMA flood zone or Very High fire zone, an active oil/gas well within 3,200 ft, or heavy industry within 1,200 ft.">i</span></label>
+        <div class="row" style="grid-template-columns:150px 1fr"><label>City</label><select id="city"><option value="">All 34 cities</option></select></div>
         <div class="note">Need index = average of CalEnviroScreen 5.0 housing-burden and poverty percentiles. Financing fit = TCAC opportunity area + transit. Preset ranges are judgment calls<span class="asm">ASSUMPTION</span>, not TCAC rules.</div>
       </div>
     </div>
@@ -187,6 +190,7 @@
 </div>
 </div>
 
+<div id="tip"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="data/sites.js"></script>
 <script>
@@ -285,6 +289,15 @@ document.getElementById("wells").onchange = e => e.target.checked ? wellLayer.ad
 function title(n) { return n.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()).replace(/\bOf\b/g, "of").replace(/\bThe\b/g, "the").replace(/^the/, "The").replace(/\bInc\b\.?/g, "").trim(); }
 function siteName(s) { return s.name ? title(s.name) : `Religious facility, APN ${s.APN24}`; }
 
+// ---------- methodology tooltips ----------
+(() => { const tip = document.getElementById("tip");
+  document.addEventListener("mouseover", e => { const el = e.target.closest("[data-tip]"); if (!el) return;
+    tip.textContent = el.dataset.tip; tip.style.display = "block";
+    const r = el.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+    let x = Math.min(r.left, innerWidth - w - 10), y = r.bottom + 8; if (y + h > innerHeight - 10) y = r.top - h - 8;
+    tip.style.left = Math.max(10, x) + "px"; tip.style.top = y + "px"; });
+  document.addEventListener("mouseout", e => { if (e.target.closest("[data-tip]")) tip.style.display = "none"; }); })();
+
 // ---------- list ----------
 const $ = id => document.getElementById(id);
 const CTRL = ["w_yield", "w_need", "w_fin", "w_cert", "minU", "maxU", "maxC", "minN"];
@@ -342,7 +355,7 @@ function render() {
       <div><div class="nm">${siteName(s)}</div>
       <div class="meta">${s.CITY} · <b>~${s.units_est} homes</b> · ${money(s.cost_lo)}–${money(s.cost_hi)} · ${s.parking_req ? s.parking_req + " parking" : "0 parking"}${s.verdict === "excluded" ? " · excluded: " + s.fails.join(", ") : ""}</div>
       <div class="badges">${badges(s)}</div></div>
-      <div class="sc"><b>${s.score || "–"}</b><span>match</span></div></div>`).join("") +
+      <div class="sc" data-tip="Match score 0–100: weighted average of yield, community need, financing fit and entitlement certainty using the weights in Customize."><b>${s.score || "–"}</b><span>match</span></div></div>`).join("") +
     `<div class="meta" style="padding:12px 20px">${fmt(rows.length)} sites match · ${fmt(rows.reduce((a, s) => a + s.units_est, 0))} homes. Match score reflects your priorities above.</div>`;
   document.querySelectorAll(".card").forEach(c => c.onclick = () => open(+c.dataset.id));
   const ids = new Set(rows.map(s => s.pid));
