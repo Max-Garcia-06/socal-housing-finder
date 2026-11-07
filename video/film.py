@@ -47,15 +47,16 @@ p{font:400 26px/1.45 Inter;color:#4A4842;margin:0;max-width:980px}p b{color:#1F1
 LOGO = '<svg class="mark" viewBox="0 0 32 32"><path d="M16 3 L28 13 V29 H4 V13 Z" fill="#D97757"/><rect x="13" y="18" width="6" height="11" fill="#F4F1EA"/><path d="M16 7v6M13 10h6" stroke="#F4F1EA" stroke-width="2"/></svg>'
 
 TITLE = LOGO + """<div class="k">Claude Impact Lab · UCI · Lane 1 Find it</div><h1>Common Ground</h1>
-<p>A nonprofit developer's map of <b>church land in Orange County</b> that California's SB 4 lets become
-<b>100% affordable homes, by right</b>: no rezoning, no CEQA.</p>"""
+<p>California's SB 4 lets churches build <b>100% affordable homes by right</b>. Common Ground shows nonprofit
+developers <b>which Orange County church sites qualify</b>, what they'd cost, and how to fund them.</p>"""
 
 END = LOGO + """<h1 style="font-size:60px">Find it. Clear it. Fund it.</h1>
-<div class="row"><div class="c"><b>1,168</b><span>church parcels screened against SB 4, countywide</span></div>
+<div class="row"><div class="c"><b>1,168</b><span>OC church parcels screened against SB 4</span></div>
 <div class="c"><b>926</b><span>pass every test we can check, each with its source</span></div>
-<div class="c"><b>~26,400</b><span>homes on half of each eligible lot (estimate)</span></div></div>
-<div class="f">Built with Claude · Public data: SCAG, FEMA, CAL FIRE, CalGEM, Caltrans, CalEnviroScreen, TCAC/HCD, IRS · Prototype, not legal advice.
-Ownership needs a title check.<br>github.com/Max-Garcia-06/socal-housing-finder</div>"""
+<div class="c"><b>~26,400</b><span>homes possible on half of each eligible lot (estimate)</span></div></div>
+<div class="f">Cross-checked: 1,902 acres of church land vs. Terner Center's independent 1,907 · Built with Claude<br>
+Public data: SCAG, FEMA, CAL FIRE, CalGEM, Caltrans, CalEnviroScreen, TCAC/HCD, HUD, RAND, Overture · Prototype, not legal advice<br>
+github.com/Max-Garcia-06/socal-housing-finder</div>"""
 
 
 def run(cmd):
@@ -137,8 +138,10 @@ async def main():
             await page.set_content(CARD.replace("BODY", body))
             await page.wait_for_timeout(1200)
             await page.screenshot(path=str(FR / f"{name}.jpg"), type="jpeg", quality=95)
-        encode_still("s0_title", FR / "title.jpg", 3.6)
+        encode_still("s0_title", FR / "title.jpg", 3.2)
 
+        await page.goto(URL)
+        await page.evaluate("try{localStorage.clear()}catch(e){}; 0")
         await page.goto(URL)
         await page.add_style_tag(content=CAPTION_CSS)
         await page.evaluate("""() => { const c = document.createElement('div'); c.id = 'cap'; c.innerHTML = '<div></div>';
@@ -147,43 +150,52 @@ async def main():
         await page.wait_for_timeout(3500)  # tiles
 
         async def s1():
-            await caption(page, "<b>1,168</b> religious-use parcels across all 34 OC cities, screened against SB 4")
-            await page.wait_for_timeout(2600)
-            await page.evaluate("leafletMap.flyTo([33.70,-117.95], 12, {duration:1.6}); 0")
-        await film(page, "s1_overview", 4.6, s1)
+            await caption(page, "<b>1,168</b> church parcels across Orange County, screened against SB 4")
+            await page.wait_for_timeout(2300)
+            await page.evaluate("document.getElementById('wells').click(); leafletMap.flyTo([33.70,-117.99], 13, {duration:1.2}); 0")
+            await caption(page, "Oil wells, industry, flood and fire zones <b>rule out 242</b> automatically")
+        await film(page, "s1_overview", 5.2, s1)
 
         async def s2():
-            await page.evaluate("document.getElementById('wells').click(); 0")
-            await caption(page, "Oil wells, industry, flood and fire zones <b>rule out 242 sites</b> automatically")
-            await page.wait_for_timeout(1400)
-            await page.evaluate("openSite(54); 0")
-        await film(page, "s2_exclude", 4.6, s2)
+            await page.evaluate("document.getElementById('wells').click(); leafletMap.flyTo([33.70,-117.83], 11, {duration:.6}); orgForm(); 0")
+            await caption(page, "A nonprofit sets up its <b>profile</b>: who it houses, deal size, financing")
+            await page.wait_for_timeout(500)
+            await page.click("input[name=name]")
+            await page.keyboard.type("Orange Coast Housing Partners", delay=22)
+            for sel in ["input[name=prios][value=transit]", "input[name=cities][value='Santa Ana']",
+                        "input[name=cities][value='Anaheim']", "input[name=cities][value='Garden Grove']"]:
+                await page.check(sel)
+                await page.wait_for_timeout(120)
+            await page.wait_for_timeout(300)
+            await page.click("#ofsave")
+            await caption(page, "Sites re-rank for <b>that organization</b>, with the reasons why")
+        await film(page, "s2_profile", 6.0, s2)
+
+        # Warm the satellite tiles for the top match so the zoom-in is not blank on camera
+        await page.evaluate("document.querySelector('.card').click(); 0")
+        await page.wait_for_timeout(4000)
+        await page.evaluate("document.getElementById('back').click(); leafletMap.setView([33.70,-117.83], 11, {animate:false}); 0")
+        await page.wait_for_timeout(1500)
 
         async def s3():
-            await page.evaluate("document.getElementById('wells').click(); document.getElementById('back').click(); leafletMap.flyTo([33.81,-117.92], 12, {duration:1}); 0")
-            await caption(page, "Sites ranked for impact: <b>homes, need, fundability</b>")
-            await page.wait_for_timeout(1700)
-            await page.evaluate("openSite(98); 0")
-            await page.wait_for_timeout(2300)
-            await caption(page, "~67 homes, zero parking near transit. <b>Every test cites its source</b>")
-            await page.evaluate("document.querySelector('#detail .scroll').scrollTo({top:300,behavior:'smooth'}); 0")
-        await film(page, "s3_site", 6.4, s3)
+            await page.evaluate("document.querySelector('.card').click(); 0")
+            await caption(page, "Every SB 4 test, capacity, parking, and a <b>contact for the congregation</b>")
+            await page.wait_for_timeout(2600)
+            await page.evaluate("setTab('fund'); document.querySelector('#detail .scroll').scrollTo({top:470,behavior:'smooth'}); 0")
+            await caption(page, "<b>Sourced cost</b> and a capital stack for a 9% and a 4% tax-credit deal")
+        await film(page, "s3_site", 6.2, s3)
 
         async def s4():
-            await page.evaluate("setTab('clear'); document.querySelector('#detail .scroll').scrollTop = 0; 0")
-            await caption(page, "<b>Clear it:</b> ministerial approval, a 60-day review clock, the checklist")
-            await page.wait_for_timeout(2600)
-            await page.evaluate("setTab('fund'); 0")
-            await caption(page, "<b>Fund it:</b> cost range, $0 land via ground lease, a funding stack")
-            await page.wait_for_timeout(2400)
-            await page.evaluate("document.getElementById('draft').click(); document.querySelector('#detail .scroll').scrollTo({top:900,behavior:'smooth'}); 0")
-            await caption(page, "…and a <b>draft letter</b> to open the conversation with the congregation")
-        await film(page, "s4_clear_fund", 7.4, s4)
+            await page.evaluate("deepDive(+location.hash.split('=')[1]); 0")
+            await caption(page, "One click: a <b>deep dive</b> with who to call, next steps, and Claude for research")
+            await page.wait_for_timeout(1900)
+            await page.evaluate("document.getElementById('dossier').scrollTo({top:520,behavior:'smooth'}); 0")
+        await film(page, "s4_deepdive", 4.4, s4)
 
         await b.close()
 
-    encode_still("s5_end", FR / "end.jpg", 4.4)
-    parts = ["s0_title", "s1_overview", "s2_exclude", "s3_site", "s4_clear_fund", "s5_end"]
+    encode_still("s5_end", FR / "end.jpg", 4.6)
+    parts = ["s0_title", "s1_overview", "s2_profile", "s3_site", "s4_deepdive", "s5_end"]
     (OUT / "list.txt").write_text("".join(f"file '{OUT / n}.mp4'\n" for n in parts))
     tmp = OUT / "demo.tmp.mp4"
     run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(OUT / "list.txt"), "-c", "copy", "-movflags", "+faststart", str(tmp)])
