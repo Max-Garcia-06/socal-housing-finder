@@ -30,9 +30,10 @@ DENSITY_NONRES = 40                # SB 4 non-residential zone density (HCD fact
 BUILDABLE_SHARE = 0.5              # ASSUMPTION: half the parcel (parking / open area) is buildable; sanctuary stays
 # Total development cost (TDC) model. Every input is sourced or marked ASSUMPTION; see README "How we estimate cost".
 NRSF_PER_HOME = 850                # ASSUMPTION: net rentable sq ft per home (Legacy Square units are 602-1,115 sq ft)
-TDC_PSF_LO = 481                   # RAND 2025: avg LIHTC TDC per net rentable sq ft, San Diego metro (CA's lowest)
-TDC_PSF_HI = 625                   # RAND 2025: LA metro ~1.3x San Diego -> 1.3 x 481 (ASSUMPTION: OC priced like LA metro)
-PW_PREMIUM = 94_000                # Terner 2024: prevailing-wage LIHTC new construction ~$94k/home more (high case only)
+TDC_PSF_LO = 481                   # RAND 2025: avg LIHTC TDC per net rentable sq ft, San Diego metro (CA's lowest), in 2019 dollars
+TDC_PSF_HI = 625                   # RAND 2025: LA metro ~1.3x San Diego -> 1.3 x 481 (ASSUMPTION: OC priced like LA metro), 2019 dollars
+ESC_LO, ESC_HI = 1.39, 1.44        # Verisk via Construction Owners (Mar 2025): construction costs +39% statewide, +44% LA, 2019-2024
+PW_PREMIUM = 94_000                # Terner 2024: PW vs non-PW LIHTC gap; NOT added: RAND's LIHTC benchmark already reflects it
 HARD_SHARE = 0.60                  # Terner 2020: hard costs were >60% of total cost in California
 IMPACT_FEES = 29_000               # RAND 2025: avg municipal impact/development fees per unit in California
 PARKING_PER_SPACE = 52_000         # UCLA ITS 2025: avg above-ground structured parking cost per space (17 US cities)
@@ -231,11 +232,12 @@ def main():
         return f
 
     p["funding"] = p.apply(funding, axis=1)
-    per_lo = TDC_PSF_LO * NRSF_PER_HOME
-    per_hi = TDC_PSF_HI * NRSF_PER_HOME + PW_PREMIUM
-    p["cost_lo"] = p["units_est"] * per_lo
-    p["cost_hi"] = p["units_est"] * per_hi
+    per_lo = TDC_PSF_LO * ESC_LO * NRSF_PER_HOME
+    per_hi = TDC_PSF_HI * ESC_HI * NRSF_PER_HOME
     p["parking_cost"] = p["parking_req"] * PARKING_PER_SPACE
+    p["cost_lo"] = (p["units_est"] * per_lo).round(-3)
+    # High case adds a garage for required parking (sites outside transit areas): the church's surface lot is the building site
+    p["cost_hi"] = (p["units_est"] * per_hi + p["parking_cost"]).round(-3)
 
     cols = ["pid", "APN24", "CITY", "ACRES", "SLOPE", "lat", "lon", "ZN24_CITY", "ZN24_SCAG", "zone_res", "density",
             "units_max", "units_est", "parking_req", "hqta", "oppcat", "CIscoreP", "HousBurd", "HousBurd_Pctl",
@@ -269,7 +271,7 @@ def main():
                                   + ";\nwindow.WELLS=" + json.dumps(wells_gj) + ";\nwindow.PRECEDENTS=" + json.dumps(PRECEDENTS)
                                   + ";\nwindow.CONTACTS=" + json.dumps({c["Jurisdiction"].replace("City of ", ""): c for c in json.loads((RAW / "city_contacts.json").read_text()) if c["Jurisdiction"].startswith("City of ")})
                                   + ";\nwindow.COUNTIES=" + (RAW / "socal_counties.geojson").read_text() + ";\nwindow.BENCH=" + json.dumps(bench) + ";\nwindow.COST=" + json.dumps(dict(
-                                      nrsf=NRSF_PER_HOME, psf_lo=TDC_PSF_LO, psf_hi=TDC_PSF_HI, pw=PW_PREMIUM, hard=HARD_SHARE,
+                                      nrsf=NRSF_PER_HOME, psf_lo=TDC_PSF_LO, psf_hi=TDC_PSF_HI, esc_lo=ESC_LO, esc_hi=ESC_HI, pw=PW_PREMIUM, hard=HARD_SHARE,
                                       fees=IMPACT_FEES, parking=PARKING_PER_SPACE)) + ";\nwindow.BUILT='" + pd.Timestamp.now().strftime("%Y-%m-%d") + "';\n")
     likely = out[out.verdict == "likely"]
     print(f"{len(out)} religious parcels; {len(likely)} likely eligible; {int((out.score > 0).sum())} ranked")
