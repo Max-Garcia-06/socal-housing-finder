@@ -138,7 +138,7 @@ async def main():
             await page.set_content(CARD.replace("BODY", body))
             await page.wait_for_timeout(1200)
             await page.screenshot(path=str(FR / f"{name}.jpg"), type="jpeg", quality=95)
-        encode_still("s0_title", FR / "title.jpg", 3.2)
+        encode_still("s0_title", FR / "title.jpg", 4.0)
 
         await page.goto(URL)
         await page.evaluate("try{localStorage.clear()}catch(e){}; 0")
@@ -151,10 +151,10 @@ async def main():
 
         async def s1():
             await caption(page, "<b>1,168</b> church parcels across Orange County, screened against SB 4")
-            await page.wait_for_timeout(2300)
+            await page.wait_for_timeout(3500)
             await page.evaluate("document.getElementById('wells').click(); leafletMap.flyTo([33.70,-117.99], 13, {duration:1.2}); 0")
             await caption(page, "Oil wells, industry, flood and fire zones <b>rule out 242</b> automatically")
-        await film(page, "s1_overview", 5.2, s1)
+        await film(page, "s1_overview", 7.6, s1)
 
         async def s2():
             await page.evaluate("document.getElementById('wells').click(); leafletMap.flyTo([33.70,-117.83], 11, {duration:.6}); orgForm(); 0")
@@ -190,12 +190,11 @@ async def main():
             await caption(page, "One click: a <b>deep dive</b> with who to call, next steps, and Claude for research")
             await page.wait_for_timeout(1900)
             await page.evaluate("document.getElementById('dossier').scrollTo({top:520,behavior:'smooth'}); 0")
-        await film(page, "s4_deepdive", 4.4, s4)
+        await film(page, "s4_deepdive", 5.0, s4)
 
         await b.close()
 
-    encode_still("s5_end", FR / "end.jpg", 4.6)
-    parts = ["s0_title", "s1_overview", "s2_profile", "s3_site", "s4_deepdive", "s5_end"]
+    parts = ["s0_title", "s1_overview", "s2_profile", "s3_site", "s4_deepdive"]
     (OUT / "list.txt").write_text("".join(f"file '{OUT / n}.mp4'\n" for n in parts))
     tmp = OUT / "demo.tmp.mp4"
     run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(OUT / "list.txt"), "-c", "copy", "-movflags", "+faststart", str(tmp)])

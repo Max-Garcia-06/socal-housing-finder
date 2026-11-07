@@ -167,7 +167,7 @@ This project uses only public or provided data. It contains no personal informat
 | `scripts/make_standalone.py` | Single-file build for hosting without map tiles |
 | `web/index.html` | The app (Leaflet, no build step) |
 | `findit/` | Earlier geo / Census helpers (adapted from our UCI Datathon project with Justin Siek, Austin H and Leo Wu-Hacohen) |
-| `video/film.py` | Records the demo video from the live page |
+| `video/film.py`, `video/voiceover.py` | Record the demo video from the live page and add the narrated voiceover (Edge neural TTS, `pip install edge-tts`) |
 
 ## License
 
