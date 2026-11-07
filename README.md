@@ -22,6 +22,7 @@ _Made-up user, per the event rules._ The acquisitions lead at a small Orange Cou
 
 - **Countywide screen.** 1,168 parcels that SCAG's 2024 land-use data classes as religious facilities, across all 34 OC cities. 926 pass every SB 4 test we can check; 242 are excluded (heavy industry within 1,200 ft: 130, Very High fire zone: 52, FEMA flood zone: 43, active oil/gas well within 3,200 ft: 31). About 26,400 homes are possible on half of each eligible lot of 0.5+ acres (ASSUMPTION, see below).
 - **Cross-check.** Our 1,902 acres of OC church land (parcels ≥ 10,000 sq ft) match Terner Center's independent 1,907-acre estimate ([Terner-Center/SB4-Analysis](https://github.com/Terner-Center/SB4-Analysis)).
+- **Nonprofit profile.** A developer enters who they house (families, seniors, supportive housing, workforce), deal size, the largest project they can take on, how they finance (4%/9%/no tax credits), priorities, whether they can build structured parking, risk tolerance and service-area cities. The profile becomes ranking weights and filters, and every site shows **why it fits** that organization (e.g. "near frequent transit · no garage needed · high need · in your service area"). Saved only in the user's browser; it also feeds the Claude deep-dive prompt.
 - **Deal screening.** Presets (9% tax credit deal, Transit-oriented/AHSC, Deepest need, Small infill), four priority sliders (yield, community need, financing fit, entitlement certainty) and filters (homes, total cost, no-parking, need index, 9%-competitive area, AHSC-eligible, HUD basis boost, clean screen, city behind on its lower-income target, already in the housing element, contactable congregation, city). Every control has a tooltip with its exact method.
 - **Per site, three tabs:**
   1. **Find:** every SB 4 test as pass / fail / caution / unknown with its source; capacity; parking; need; opportunity area; city housing-target progress; basis-boost eligibility.
@@ -130,7 +131,7 @@ No API keys are used. `.env.example` lists only the optional Census key for the 
 | Part | Status |
 |---|---|
 | Countywide parcel screen (flood, fire, oil/gas, industry, parking) | working, real public data |
-| Ranking, presets, filters, tooltips | working |
+| Ranking, presets, filters, tooltips, nonprofit profile | working (profile stored only in the browser) |
 | Cost estimate and capital stack | working; benchmark-based, not an underwriting |
 | Program fit | working; rules of thumb from public program criteria |
 | City contacts, RHNA progress, income limits, basis-boost flags | working, real public data |

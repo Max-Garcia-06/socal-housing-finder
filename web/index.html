@@ -55,6 +55,19 @@
   .stack div{display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden}
   .fit{display:grid;grid-template-columns:22px 1fr;gap:6px;padding:6px 0;border-bottom:1px dashed var(--line);font-size:12px}
   .fit b{font-size:12.5px}
+  #orgbar{margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  #orgbar .who{font-size:12px;background:var(--clay-l);color:#7A3A22;border-radius:999px;padding:4px 10px;font-weight:600}
+  #orgbar a{font-size:11.5px;color:var(--clay-d);cursor:pointer}
+  .fitwhy{font-size:11px;color:#2F5D2E;margin-top:3px}
+  .of{display:grid;grid-template-columns:1fr 1fr;gap:14px 20px}
+  .of label.h{display:block;font:600 12.5px Inter;margin-bottom:5px}
+  .of .hint{font-size:11px;color:var(--muted);margin-top:3px}
+  .of input[type=text],.of input[type=number],.of select{width:100%;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:13px Inter;background:#fff}
+  .of .opts{display:flex;flex-wrap:wrap;gap:6px}
+  .of .opts label{border:1px solid var(--line);background:#fff;border-radius:999px;padding:5px 11px;font-size:12px;cursor:pointer;display:flex;gap:6px;align-items:center}
+  .of .opts input{accent-color:var(--clay)}
+  .of .full{grid-column:1 / -1}
+  .citygrid{display:grid;grid-template-columns:repeat(4,1fr);gap:3px 10px;max-height:150px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff;font-size:12px}
   #dossier{position:fixed;left:420px;right:0;top:0;bottom:0;z-index:2000;background:rgba(244,241,234,.97);overflow:auto;display:none}
   #dossier.on{display:block}
   .dz{max-width:1040px;margin:0 auto;padding:26px 34px 60px}
@@ -140,6 +153,7 @@
       <div class="stat"><b id="s3">–</b><span>homes possible (est.)<span class="asm">ASSUMPTION</span> <span class="i" data-tip="Sum over likely-eligible sites of 0.5+ acres: half of each lot at SB 4 density. A screening estimate, not a capacity study. Density bonus law could add more.">i</span></span></div>
     </div>
     <div class="sub" id="bench" style="margin-top:8px"></div>
+    <div id="orgbar"></div>
   </header>
   <div id="listView" style="display:flex;flex-direction:column;min-height:0;flex:1">
     <div class="filters" style="border-bottom:0;padding-bottom:6px">
@@ -322,7 +336,7 @@ legend.addTo(map);
 document.getElementById("wells").onchange = e => e.target.checked ? wellLayer.addTo(map) : map.removeLayer(wellLayer);
 
 function title(n) { return n.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()).replace(/\bOf\b/g, "of").replace(/\bThe\b/g, "the").replace(/^the/, "The").replace(/\bInc\b\.?/g, "").trim(); }
-function siteName(s) { return s.name ? title(s.name) : `Religious facility, APN ${s.APN24}`; }
+function siteName(s) { return s.name ? title(s.name) : s.APN24 ? `Religious facility, APN ${s.APN24}` : `Religious facility, ${s.CITY}`; }
 
 // ---------- methodology tooltips ----------
 (() => { const tip = document.getElementById("tip");
@@ -370,7 +384,7 @@ function filtered() {
     && (!t.t_park || s.parking_req === 0) && (!v.minN || s.need_idx >= v.minN)
     && (!t.t_9 || ["High Resource", "Highest Resource"].includes(s.oppcat)) && (!t.t_ahsc || s.hqta)
     && (!t.t_boost || s.qct || s.dda) && (!t.t_behind || s.li_pct < 25) && (!t.t_clean || s.n_caution === 0) && (!t.t_he || s.he_total > 0) && (!t.t_irs || !!s.name)
-    && (!$("city").value || s.CITY === $("city").value)).sort((a, b) => b.score - a.score || b.units_est - a.units_est);
+    && (!$("city").value || s.CITY === $("city").value) && (!ORG || !ORG.cities.length || ORG.cities.includes(s.CITY))).sort((a, b) => b.score - a.score || b.units_est - a.units_est);
 }
 function badges(s) {
   const b = [];
@@ -391,16 +405,95 @@ function render() {
     <div class="card" data-id="${s.pid}"><div class="rk">${s.score ? i + 1 : "–"}</div>
       <div><div class="nm">${siteName(s)}</div>
       <div class="meta">${s.CITY} · <b>~${s.units_est} homes</b> · ${money(s.cost_lo)}–${money(s.cost_hi)} · ${s.parking_req ? s.parking_req + " parking" : "0 parking"}${s.verdict === "excluded" ? " · excluded: " + s.fails.join(", ") : ""}</div>
-      <div class="badges">${badges(s)}</div></div>
+      <div class="badges">${badges(s)}</div>${ORG && fitReasons(s).length ? `<div class="fitwhy">✓ ${fitReasons(s).slice(0, 3).join(" · ")}</div>` : ""}</div>
       <div class="sc" data-tip="Match score 0–100: weighted average of yield, community need, financing fit and entitlement certainty using the weights in Customize."><b>${s.score || "–"}</b><span>match</span></div></div>`).join("") +
-    `<div class="meta" style="padding:12px 20px">${fmt(rows.length)} sites match · ${fmt(rows.reduce((a, s) => a + s.units_est, 0))} homes. Match score reflects your priorities above.</div>`;
+    `<div class="meta" style="padding:12px 20px">${fmt(rows.length)} sites match · ${fmt(rows.reduce((a, s) => a + s.units_est, 0))} homes. ${ORG ? `Ranked for ${ORG.name || "your organization"}'s profile.` : "Match score reflects your priorities above."}</div>`;
   document.querySelectorAll(".card").forEach(c => c.onclick = () => open(+c.dataset.id));
   const ids = new Set(rows.map(s => s.pid));
   S.forEach(s => { const on = ids.has(s.pid);
     const fc = s.verdict === "excluded" ? "#8C877C" : !s.score ? "#C9C3B6" : s.score >= q1 ? "#B85C3E" : s.score >= q2 ? "#D97757" : "#E9A98D";
     dots[s.pid].setStyle({ fillColor: fc, fillOpacity: on ? .92 : .1, opacity: on ? 1 : .15 }); });
 }
-setCtl({});
+// ---------- nonprofit profile ----------
+let ORG = null;
+try { ORG = JSON.parse(localStorage.getItem("cg_org") || "null"); } catch { ORG = null; }
+const POPS = { families: "Families", seniors: "Seniors", psh: "Supportive housing (formerly homeless)", workforce: "Workers / teachers (up to 80% AMI)" };
+const PRIOS = { scale: "Most homes per deal", need: "Deepest community need", opportunity: "High-opportunity neighborhoods", transit: "Near frequent transit", speed: "Fastest, lowest-risk path" };
+const FIN = { both: "4% or 9% tax credits", lihtc9: "9% tax credits only", lihtc4: "4% bonds + state credits", soft: "No tax credits (local / soft money)" };
+function orgToCtl(o) {
+  const v = { w_yield: 3, w_need: 3, w_fin: 2, w_cert: 2, minU: o.minU, maxU: o.maxU, maxC: o.maxC };
+  const pr = o.prios || [], pop = o.pops || [];
+  if (pr.includes("scale")) v.w_yield += 4;
+  if (pr.includes("need")) v.w_need += 4;
+  if (pr.includes("opportunity") || pr.includes("transit")) v.w_fin += 4;
+  if (pr.includes("speed")) v.w_cert += 4;
+  if (pop.includes("psh")) { v.w_need += 2; v.w_fin += 1; }
+  if (pop.includes("families") && pr.includes("opportunity")) v.t_9 = 1;
+  if (o.fin === "lihtc9") { v.t_9 = 1; v.w_fin += 2; }
+  if (!o.garage) v.t_park = 1;
+  if (o.risk === "low") v.t_clean = 1;
+  return v;
+}
+function fitReasons(s) {
+  if (!ORG) return [];
+  const r = [], g = [], mid = (s.cost_lo + s.cost_hi) / 2 / 1e6, hi = ["High Resource", "Highest Resource"].includes(s.oppcat), pr = ORG.prios || [];
+  if (pr.includes("transit") && s.hqta) r.push("near frequent transit");
+  if (!ORG.garage && s.parking_req === 0) r.push("no garage needed");
+  if ((pr.includes("opportunity") || ORG.fin === "lihtc9") && hi) r.push(`${s.oppcat} (9% points)`);
+  if ((pr.includes("need") || (ORG.pops || []).includes("psh")) && s.need_idx >= 75) r.push(`high need (${s.need_idx}th pct)`);
+  if (pr.includes("scale") && s.units_est >= 60) r.push(`~${s.units_est} homes`);
+  if (ORG.fin !== "soft" && (s.qct || s.dda)) r.push("basis boost");
+  if (pr.includes("speed") && s.n_caution === 0) r.push("clean screen");
+  if (s.li_pct < 25) r.push(`city at ${s.li_pct}% of its lower-income goal`);
+  if (ORG.cities.length && ORG.cities.includes(s.CITY)) g.push("in your service area");
+  if (s.units_est >= ORG.minU && s.units_est <= ORG.maxU) g.push(`fits your ${ORG.minU}–${ORG.maxU}-home range`);
+  if (mid <= ORG.maxC) g.push(`within your $${ORG.maxC}M budget`);
+  return [...r, ...g];
+}
+function orgBar() {
+  $("orgbar").innerHTML = ORG ? `<span class="who">★ Best matches for ${ORG.name || "your organization"}</span><a id="orgedit">edit profile</a><a id="orgclear">clear</a>`
+    : `<button class="btn" id="orgedit" style="margin-top:0">Set up your nonprofit's profile →</button><span class="meta">get matches ranked for your deals</span>`;
+  $("orgedit").onclick = orgForm;
+  if (ORG) $("orgclear").onclick = () => { ORG = null; try { localStorage.removeItem("cg_org"); } catch {} setCtl({}); orgBar(); render(); };
+}
+function applyOrg() {
+  setCtl(orgToCtl(ORG));
+  document.querySelectorAll(".chip[data-p]").forEach(x => x.classList.remove("on"));
+  orgBar(); render();
+}
+function orgForm() {
+  const o = ORG || { name: "", pops: ["families"], minU: 30, maxU: 100, maxC: 60, fin: "both", prios: ["need"], garage: false, risk: "med", cities: [] };
+  const d = $("dossier"), chk = (name, val, on, lab) => `<label><input type="checkbox" name="${name}" value="${val}" ${on ? "checked" : ""}>${lab}</label>`;
+  const rad = (name, val, on, lab) => `<label><input type="radio" name="${name}" value="${val}" ${on ? "checked" : ""}>${lab}</label>`;
+  d.innerHTML = `<div class="dz"><div style="display:flex;justify-content:space-between;align-items:start"><div><div class="k">Your organization</div><h2>Find the church sites that fit your nonprofit</h2>
+    <div class="meta">Tell us what you build and how you finance it. We turn it into ranking weights and filters, and explain why each site matches. Saved only in this browser.</div></div>
+    <button class="btn ghost" id="ofclose">✕ Close</button></div>
+    <form id="of" class="of dcard" style="margin-top:16px">
+      <div class="full"><label class="h">Organization name</label><input type="text" name="name" value="${o.name}" placeholder="e.g. Orange Coast Housing Partners"></div>
+      <div class="full"><label class="h">Who you house</label><div class="opts">${Object.entries(POPS).map(([k, l]) => chk("pops", k, o.pops.includes(k), l)).join("")}</div></div>
+      <div><label class="h">Typical deal size (homes)</label><div style="display:flex;gap:8px"><input type="number" name="minU" value="${o.minU}" min="0"><input type="number" name="maxU" value="${o.maxU}" min="5"></div><div class="hint">Min and max homes per project</div></div>
+      <div><label class="h">Largest total project you can take on ($M)</label><input type="number" name="maxC" value="${o.maxC}" min="5" max="150"><div class="hint">Total development cost, all sources</div></div>
+      <div class="full"><label class="h">How you finance</label><div class="opts">${Object.entries(FIN).map(([k, l]) => rad("fin", k, o.fin === k, l)).join("")}</div></div>
+      <div class="full"><label class="h">What matters most (pick any)</label><div class="opts">${Object.entries(PRIOS).map(([k, l]) => chk("prios", k, o.prios.includes(k), l)).join("")}</div></div>
+      <div><label class="h">Can you build structured parking?</label><div class="opts">${rad("garage", "1", o.garage, "Yes")}${rad("garage", "0", !o.garage, "No: only sites needing no parking")}</div></div>
+      <div><label class="h">Site risk you'll take on</label><div class="opts">${rad("risk", "low", o.risk === "low", "Clean screens only")}${rad("risk", "med", o.risk !== "low", "Cautions OK if workable")}</div></div>
+      <div class="full"><label class="h">Service area <span class="meta" style="font-weight:400">(none = all of Orange County)</span></label>
+        <div class="citygrid">${cities.map(c => `<label><input type="checkbox" name="cities" value="${c}" ${o.cities.includes(c) ? "checked" : ""}> ${c}</label>`).join("")}</div></div>
+      <div class="full" style="display:flex;gap:8px;align-items:center"><button class="btn" type="submit" style="margin-top:0">Show my best matches</button><span class="meta">You can fine-tune everything in "Customize" afterward.</span></div>
+    </form></div>`;
+  d.classList.add("on"); d.scrollTop = 0;
+  $("ofclose").onclick = () => d.classList.remove("on");
+  $("of").onsubmit = e => { e.preventDefault(); const f = new FormData(e.target);
+    ORG = { name: (f.get("name") || "").trim(), pops: f.getAll("pops"), prios: f.getAll("prios"), cities: f.getAll("cities"), fin: f.get("fin"),
+      minU: Math.max(0, +f.get("minU") || 0), maxU: Math.max(5, +f.get("maxU") || 300), maxC: Math.min(150, Math.max(5, +f.get("maxC") || 150)),
+      garage: f.get("garage") === "1", risk: f.get("risk") };
+    try { localStorage.setItem("cg_org", JSON.stringify(ORG)); } catch {}
+    d.classList.remove("on"); applyOrg(); };
+}
+window.setOrg = o => { ORG = o; applyOrg(); }; window.orgForm = orgForm;
+
+if (ORG) setCtl(orgToCtl(ORG)); else setCtl({});
+orgBar();
 render();
 
 // ---------- detail ----------
@@ -451,7 +544,7 @@ function programFit(s) {
     ["~", "Orange County Housing Finance Trust", `County + member-city gap loans. Confirm ${s.CITY} is a Trust member and check the current NOFA.`, "https://www.ochft.org/"],
     ["~", "City funds (HOME, housing trust, fee waivers)", `Ask ${s.CITY}${s.he_total ? ", which already lists this parcel in its housing element," : ""}. ${rhnaTxt(s)} Wesley Village got $3.6M in HOME funds; Laguna Beach committed $6.71M (~$231k/home) to its SB 4 church project.`, SRCWV],
     ["✓", "FHLB San Francisco AHP", "Competitive gap grants through a member bank; Wesley Village received $460k.", "https://www.fhlbsf.com/"],
-    ["~", "OC Supportive Housing NOFA", "Only if some homes are permanent supportive housing (Legacy Square set aside 33).", "https://housing.oc.gov/housing-development"],
+    [ORG && (ORG.pops || []).includes("psh") ? "✓" : "~", "OC Supportive Housing NOFA", ORG && (ORG.pops || []).includes("psh") ? "Your organization houses formerly homeless residents: this NOFA funds permanent supportive housing (Legacy Square set aside 33 such homes)." : "Only if some homes are permanent supportive housing (Legacy Square set aside 33).", "https://housing.oc.gov/housing-development"],
   ];
 }
 function stackBar(parts) {
@@ -494,7 +587,7 @@ function claudePrompt(s) {
 
 ${brief(s)}
 
-Please do a pre-development deep dive, citing sources:
+${ORG ? `My organization${ORG.name ? " (" + ORG.name + ")" : ""} houses ${ORG.pops.map(k => POPS[k]).join(", ") || "lower-income households"}, typically builds ${ORG.minU}–${ORG.maxU} homes per project, can take on up to $${ORG.maxC}M, and finances with ${FIN[ORG.fin]}.\n\n` : ""}Please do a pre-development deep dive, citing sources:
 1. Verify the SB 4 items our screen could not check (earthquake fault zone, wetlands/habitat, historic structures, existing tenants, Title V industrial sites) and whether ownership as of Jan 1, 2024 can be confirmed.
 2. Find ${s.CITY}'s SB 4 procedures and objective design standards (height, setbacks, parking) for this zone.
 3. Identify the congregation's denomination and how its governance approves ground leases (public information only).
@@ -573,6 +666,7 @@ function open(pid) {
       <div class="kpi"><b>${s.HousBurd_Pctl ?? "–"}th</b><span>percentile, low-income households with severe housing cost burden (CalEnviroScreen 5.0)</span></div>
       <div class="kpi"><b>${s.oppcat || "–"}</b><span>2026 TCAC/HCD Opportunity Map</span></div>
     </div>
+    ${ORG ? `<div class="note" style="background:#E1EDDF;color:#2F5D2E"><b>Why it fits ${ORG.name || "your organization"}:</b> ${fitReasons(s).join(" · ") || "matches your filters"}.</div>` : ""}
     <h3>SB 4 site tests</h3>
     ${order.map(k => `<div class="test"><div class="dot d-${t[k][0]}">${icon[t[k][0]]}</div><div><span class="tl">${TESTS[k][0]}</span><div class="ev">${t[k][1]} · <a href="${TESTS[k][1]}" target="_blank">source</a></div></div></div>`).join("")}
     ${s.he_total ? `<div class="note">The city's housing element already lists this parcel for ${fmt(s.he_total)} homes (${fmt(s.he_low)} lower-income). <a href="${SRC.he}" target="_blank">SCAG</a></div>` : ""}
